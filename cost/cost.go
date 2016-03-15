@@ -36,6 +36,10 @@ func CalculateCost(elevator message.UpdateMessage, Order message.UpdateMessage)(
 
 
 func AssignOrdersToElevator(elevator message.UpdateMessage){
+	//smallestCost := 1000
+
+
+
 	// cost:= 1000
 	// for (går igjennom alle heiser){
 	// 	cost[elev] = CalulateCost(elev)
