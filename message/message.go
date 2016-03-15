@@ -39,8 +39,9 @@ const(
 type UpdateMessage struct{
 	MessageType int
 	MasterOrSlave int
-	NewOrder [2] int
-	CurrentState [2] int
+	NewOrder [2] float64   // [button, floor]
+	CurrentState [2] float64 //[current floor, current direction]
+	OrderMatrix [3][4] int
 }
 
 func RecvMsg(conn *net.UDPConn, msgChan chan UpdateMessage) UpdateMessage{
