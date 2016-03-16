@@ -78,14 +78,14 @@ func Init_button_lamps(){
 //move to defined state
 func Startup_floor(){
 	if (Get_floor_sensor_signal() == -1){
-		Set_motor_direction(MDIR_DOWN)
+		Set_motor_speed(MDIR_DOWN)
 	}
 }
 
 
 // make a buttonPoller? time: 33.58
 
-func Set_motor_direction(dir MotorDirection){
+func Set_motor_speed(dir MotorDirection){
 	switch dir{
 	case MDIR_DOWN:
 		IO_set_bit(MOTORDIR)

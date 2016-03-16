@@ -36,8 +36,11 @@ const(
 )
 
 
+
+
 type UpdateMessage struct{
 	MessageType int
+	ElevatorId int
 	MasterOrSlave int
 	NewOrder [2] float64   // [button, floor]
 	CurrentState [2] float64 //[current floor, current direction]
@@ -47,15 +50,8 @@ type UpdateMessage struct{
 func RecvMsg(conn *net.UDPConn, msgChan chan UpdateMessage) UpdateMessage{
 	// må kjøre serverConnection() for denne funksjonen kjøres
 	buffer := make([]byte, 1024) 
-	// size := network.UDPListen(conn, buffer)
-	// // burde array være av typen UpdateMessage pga innholdet?
-	// array := buffer[0:size]
 	var msg UpdateMessage
 
-	// json.Unmarshal(array, &msg)
-	// fmt.Println("Ping mottatt")
-
-	fmt.Println("Recv1")
 	for{
 		fmt.Println("inne i forløkken i recv")
 		size := network.UDPListen(conn,buffer)
@@ -77,7 +73,6 @@ func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage){
 	defer conn.Close()
 	for {
 		encoded,_ := json.Marshal(<-msgChan)
-		fmt.Println("Send2")
 		
 		buf := []byte(encoded)
 		network.UDPWrite(conn, buf)

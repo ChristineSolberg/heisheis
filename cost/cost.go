@@ -18,7 +18,7 @@ func CalculateCost(elevator message.UpdateMessage, Order message.UpdateMessage)(
 
 	if elevator.CurrentState[1] == message.Idle{
 		directionCost = 0
-	} else if (elevDir == message.Down && belowOrAbove > 0 )|| (elevDir == message.Up && belowOrAbove < 0) {
+	} else if (elevDir == message.Down && belowOrAbove > 0) || (elevDir == message.Up && belowOrAbove < 0){
 		directionCost = 10
 	} else if (elevDir == message.Down && belowOrAbove < 0) || (elevDir == message.Up && belowOrAbove > 0){
 		directionCost = 40
@@ -30,17 +30,18 @@ func CalculateCost(elevator message.UpdateMessage, Order message.UpdateMessage)(
 	queueCost := 5 * lengthOfQueue(elevator)
 	totalCost := distanceCost + directionCost + queueCost
 	elevCost := make(map[int]int)
-	elevCost[id] = totalCost
+	elevCost[elevator.ElevatorId] = totalCost
 	return elevCost
 }
 
 
 func AssignOrdersToElevator(elevator message.UpdateMessage){
+	
+
+
+
+
 	//smallestCost := 1000
-
-
-
-	// cost:= 1000
 	// for (går igjennom alle heiser){
 	// 	cost[elev] = CalulateCost(elev)
 	// 	if cost[elev] < cost
