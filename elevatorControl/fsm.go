@@ -4,316 +4,239 @@ import(
 	
 	"./driver"
 	"fmt"
+	"time"
+	"./orderHandling"
+	"./elevatorStatus"
 )
 
-type State int
-const (
-	IDLE  			State 	= 0 
-	GO_UP					= 1
-	GO_DOWN					= 2
-	DOOR_OPEN				= 3
-)
-
-type Event int
-const (
-	FLOOR_REACHED 		Event 	= 0
-	TIMER_OUT					= 1
-	NEXT_ORDER					= 2
-	NEW_ORDER_AT_CURRENT		= 3
-	NO_EVENT					= 4
-	
-)
-
-var previousFloor int = -1
-var OrderMatrix [3][4]int // is it stupid to have global variables? hmm?
+var doorTimeout = make(chan bool)
+//var doorTimerReset = make(chan bool)
 
 
-func UpdateFSM(state State, dir MotorDirection){
-	event := getNextEvent(FLOOR_REACHED, IDLE, 1, 1)
-	switch(state){
-	case IDLE:
+func UpdateFSM(e elevatorStatus.Elevator)elevatorStatus.Elevator{
+	fmt.Println("Inne i updateFSM")
+	event := getNextEvent(e)
+	e.Dir = GetNextDirection(e)
+	fmt.Println("Direction: ", e.Dir)
+	switch(e.State){
+	case elevatorStatus.IDLE:
 		fmt.Println("State: IDLE")
-		updateFSM_IDLE(event, dir,state)
+		e = updateFSM_IDLE(event, e)
 		break
-	case GO_UP:
+	case elevatorStatus.GO_UP:
 		fmt.Println("State: GO UP")
-		updateFSM_GO_UP(event, dir,state)
+		e = updateFSM_GO_UP(event, e)
 		break
-	case GO_DOWN:
+	case elevatorStatus.GO_DOWN:
 		fmt.Println("State: GO DOWN")
-		updateFSM_GO_DOWN(event, dir,state)
+		e = updateFSM_GO_DOWN(event, e)
 		break
-	case DOOR_OPEN:
+	case elevatorStatus.DOOR_OPEN:
 		fmt.Println("State: DOOR OPEN")
-		updateFSM_DOOR_OPEN(event, dir, state)
+		e = updateFSM_DOOR_OPEN(event, e)
 		break
 	default:
 		fmt.Println("Error: No valid state in UpdateFSM")
 	}
+	return e
 }
 
 
-func updateFSM_IDLE(event Event, dir MotorDirection, state State){
+func updateFSM_IDLE(event elevatorStatus.Event, e elevatorStatus.Elevator)elevatorStatus.Elevator{
 	switch(event){
-	case NEXT_ORDER:
-		Set_motor_speed(dir)
-		if (dir == 1){
-			state = GO_UP
-		} else if(dir == -1){
-			state = GO_DOWN
+	case elevatorStatus.NEXT_ORDER:
+		driver.Set_motor_speed(e.Dir)
+		if (e.Dir == driver.MDIR_UP){
+			e.State = elevatorStatus.GO_UP
+		} else if(e.Dir == driver.MDIR_DOWN){
+			e.State = elevatorStatus.GO_DOWN
 		} else{
-			state = IDLE
+			e.State = elevatorStatus.IDLE
 		}
 		break
-	case NEW_ORDER_AT_CURRENT:
-		// Start timer function here
-		state = DOOR_OPEN
+	case elevatorStatus.NEW_ORDER_AT_CURRENT:
+		fmt.Println("UpdateFSM_IDLE: new order at current")
+		e.State = elevatorStatus.DOOR_OPEN
+		time.Sleep(3*time.Second)
+		orderHandling.DeleteCompletedOrders(e)
 		break
-	case NO_EVENT:
+	case elevatorStatus.NO_EVENT:
+		fmt.Println("UpdateFSM_IDLE: no event")
 		//do nothing
 		break
 	default:
 		fmt.Println("Error: Error in updateFSM_IDLE!")
 	}
+	return e
 }
 
 
 
-func updateFSM_GO_UP(event Event, dir MotorDirection, state State){
+func updateFSM_GO_UP(event elevatorStatus.Event,e elevatorStatus.Elevator)elevatorStatus.Elevator{
 	switch (event){
-	case FLOOR_REACHED:
-		if (shouldStop()){
-			dir = 0
-			Set_motor_speed(dir)
-			//start timer her
-			state = DOOR_OPEN
+	case elevatorStatus.FLOOR_REACHED:
+		if (orderHandling.ShouldStop(e) == 1){
+			//e.Dir = MDIR_STOP
+			driver.Set_motor_speed(driver.MDIR_STOP)
+			e.State = elevatorStatus.DOOR_OPEN
+			time.Sleep(3*time.Second)
+			orderHandling.DeleteCompletedOrders(e)
 		} else{
-			state = GO_UP
+			e.State = elevatorStatus.GO_UP
 		}
 		break
-	case NO_EVENT:
+	case elevatorStatus.NO_EVENT:
 		//Do nothing
 		break
 	default:
 		fmt.Println("Error: Error in updateFSM_GO_UP!")
 	}
+	return e
 }
 
-func updateFSM_GO_DOWN(event Event, dir MotorDirection, state State){
+func updateFSM_GO_DOWN(event elevatorStatus.Event, e elevatorStatus.Elevator)elevatorStatus.Elevator{
 	switch (event){
-	case FLOOR_REACHED:
-		if (shouldStop()){
-			dir = 0
-			Set_motor_speed(dir)
-			//start timer her
-			state = DOOR_OPEN
+	case elevatorStatus.FLOOR_REACHED:
+		if (orderHandling.ShouldStop(e) == 1){
+			//e.Dir = driver.MDIR_STOP
+			driver.Set_motor_speed(driver.MDIR_STOP)
+			e.State = elevatorStatus.DOOR_OPEN
+			time.Sleep(3*time.Second)
+			orderHandling.DeleteCompletedOrders(e)
 		} else{
-			state = GO_UP
+			e.State = elevatorStatus.GO_UP
 		}
 		break
-	case NO_EVENT:
+	case elevatorStatus.NO_EVENT:
 		//Do nothing
 		break
 	default:
 		fmt.Println("Error: Error in updateFSM_GO_DOWN!")
 	}
+	return e
 }
 
-func updateFSM_DOOR_OPEN(event Event, dir MotorDirection, state State){
+func updateFSM_DOOR_OPEN(event elevatorStatus.Event, e elevatorStatus.Elevator)elevatorStatus.Elevator{
 	switch(event){
-	case TIMER_OUT:
-		Set_door_open_lamp(0) //Er dette greit? Sjekk ut notatan :) å sette lys her altså
-		if (lengthOfQueue() == 0){
-			state = IDLE
-		} else if (dir == 1){
-			Set_motor_speed(dir)
-			state = GO_UP
-		} else if (dir == -1){
-			Set_motor_speed(dir)
-			state = GO_DOWN
+	case elevatorStatus.TIMER_OUT:
+		driver.Set_door_open_lamp(0) //Er dette greit? Sjekk ut notatan :) å sette lys her altså
+		if (orderHandling.LengthOfQueue(e) == 0){
+			e.State = elevatorStatus.IDLE
+		} else if (e.Dir == 1){
+			driver.Set_motor_speed(e.Dir)
+			e.State = elevatorStatus.GO_UP
+		} else if (e.Dir == -1){
+			driver.Set_motor_speed(e.Dir)
+			e.State = elevatorStatus.GO_DOWN
 		}
 		break
-	case NEW_ORDER_AT_CURRENT:
+	case elevatorStatus.NEW_ORDER_AT_CURRENT:
 		//start timer her
-		state = DOOR_OPEN
+		e.State = elevatorStatus.DOOR_OPEN
 		break
-	case NO_EVENT:
+	case elevatorStatus.NO_EVENT:
 		//Do nothing
 		break
 	default:
 		fmt.Println("Error: Error in updateFSM_DOOR_OPEN!")
 	}
+	return e
 }
 
 
-func getNextEvent(event Event, state State, dir MotorDirection)Event{
-	floor := Get_floor_sensor_signal()
+func getNextEvent(e elevatorStatus.Elevator)elevatorStatus.Event{
+	floor := driver.Get_floor_sensor_signal()
+	var event elevatorStatus.Event
 
-	if (floor != -1) && (previousFloor != floor){
-		event = FLOOR_REACHED
+	fmt.Println("Over select")
+	select{
+	case <- doorTimeout:
+		event = elevatorStatus.TIMER_OUT
+		fmt.Println("Event: TIMER_OUT")
+	default:
+		fmt.Println("ingenting på channel")
+	}
+	fmt.Println("under select")
+	
+	if (floor != -1) && (e.PreviousFloor != floor){
+		event = elevatorStatus.FLOOR_REACHED
 		fmt.Println("Event: FLOOR_REACHED")
-	} else if ((state == IDLE)||(state == DOOR_OPEN)) && newOrderAtCurrentFloor(dir){
-		event = NEW_ORDER_AT_CURRENT
+	} else if ((e.State == elevatorStatus.IDLE)||(e.State == elevatorStatus.DOOR_OPEN)) && orderHandling.NewOrderAtCurrentFloor(e) == 1{
+		event = elevatorStatus.NEW_ORDER_AT_CURRENT
 		fmt.Println("Event: NEW_ORDER_AT_CURRENT")
-	} else if (lengthOfQueue() > 0) || (state == IDLE){
-		event = NEXT_ORDER
+	} else if (orderHandling.LengthOfQueue(e) > 0) && (e.State == elevatorStatus.IDLE){
+		fmt.Println("Length of queue: ", orderHandling.LengthOfQueue(e))
+		event = elevatorStatus.NEXT_ORDER
 		fmt.Println("Event: NEXT_ORDER")
 	} else{
-		event = NO_EVENT
+		event = elevatorStatus.NO_EVENT
 		fmt.Println("Event = NO_EVENT")
 	}
+
+
 
 	return event
 }
 
-// func getNextOrder(dir MotorDirection, prevFloor int)int{
-// 	if(dir != -1){
-// 		if(checkOrdersAbove(prevFloor) == 1){
-// 			dir = MDIR_UP
-// 			return 1
-// 		} else if (checkOrdersAbove(prevFloor) == -1){
-// 			dir = MDIR_UP
-// 			return 1
-// 		} else if (dir != 0){
-// 			dir = MDIR_STOP
-// 			return 0
-// 		}
-// 	}
-
-// 	// ikke ferdig
-
-// }
-
-func newOrderAtCurrentFloor(dir MotorDirection)int{
-	floor := Get_floor_sensor_signal()
-	if(floor==3){	
-		if (OrderMatrix[floor][1] == 1){
-			return 1;
-		} else if (OrderMatrix[floor][2] == 1){
-			return 1;
-		}
-	} else if(floor==0){	
-		if (OrderMatrix[floor][0] == 1){
-			return 1;
-		} else if (OrderMatrix[floor][2] == 1){
-			return 1;
-		}
-	} 
-
-	if(dir!= -1){
-		if (OrderMatrix[floor][0] == 1){
-			return 1;
-		} else if (OrderMatrix[floor][2] == 1){
-			return 1;						
-		}
-	} else if(dir!= 1){
-		if (OrderMatrix[floor][1] == 1){
-			return 1;
-		} else if (OrderMatrix[floor][2] == 1){
-			return 1;						
-		}
-	}
-	return 0;
-}
-
-func shouldStop(dir MotorDirection)int{
-	//Lag denne senere - kanskje i queue
-	floor := Get_floor_sensor_signal();
-	
-	if(floor>previousFloor){
-		if (OrderMatrix[floor][2] == 1) || (OrderMatrix[floor][0] == 1)
-			return 1;	
-		if (!(checkUpOrdersAbove()||checkDownOrdersAbove()))
-			return 1;				
-	} else if(floor<previousFloor){
-		if (OrderMatrix[floor][2] == 1) || (OrderMatrix[floor][1] == 1)
-			return 1;
-		if (!(checkUpOrdersBelow()||checkDownOrdersBelow()))
-			return 1;
-	}
-	return 0;
-}
-
-// Implementer, -1 for ned knapp ovenfra, 1 for for opp knapp ovenfra
-func checkUpOrdersAbove(){
-	for (floor := previousFloor+1; floor < NUM_FLOORS; floor++){
-		if(OrderMatrix[floor][0] == 1){
-			return 1;
-		}
-		if(OrderMatrix[floor][2] == 1){
-			return 1;
-		}				
-	}
-	return 0
-}
-
-func checkDownOrdersAbove(){
-	for(floor := previousFloor + 1; floor < NUM_FLOORS; floor++){
-		if(OrderMatrix[floor][1] ==1)
-			return 1;
-		else
-			return 0;
-	}
-	return 0;	
-} 
-
-func checkUpOrdersBelow(){
-	for(floor := 0; floor < previousFloor; floor++){
-		if(OrderMatrix[floor][0] ==1){
-			return 1;
-		}
-		else
-			return 0;
-	}
-	return 0;
-
-}
-
-func checkDownOrdersBelow(){
-
-	for (floor := 0; floor < previousFloor; floor++){				
-			if(OrderMatrix[floor][1] == 1){
-				return 1;
-			}
-			else if(OrderMatrix[floor][2] == 1){
-				return 1;
-			}	
-	}
-	return 0;
-}
-
-func lengthOfQueue()int{
-	length := 0
-	for floor := 0; floor < NUM_FLOORS; floor++{
-		for button := 0; button < NUM_BUTTONS; button++{
-			if (button == 1 && floor == 0) || (button == 2 && floor == 3){
-			}else{
-				length += OrderMatrix[button][floor] //lag matrisen!
+func GetNextDirection(e elevatorStatus.Elevator)driver.MotorDirection{
+	if(e.Dir != driver.MDIR_DOWN){
+		fmt.Println("Inne i getnextdirOPP")
+		if(orderHandling.CheckUpOrdersAbove(e) == 1){
+			e.Dir = driver.MDIR_UP
+			return e.Dir
+		} else {
+			if(orderHandling.CheckDownOrdersAbove(e) == -1){
+			e.Dir = driver.MDIR_UP
+			return e.Dir
+			} else if (e.Dir != driver.MDIR_STOP){
+			e.Dir = driver.MDIR_STOP
+			return e.Dir
 			}
 		}
-	} 
-	return length
+	}
+
+	if(e.Dir != driver.MDIR_UP){
+		fmt.Println("Inne i getnextdirNED")
+		if orderHandling.CheckDownOrdersBelow(e) == 1{
+			e.Dir = driver.MDIR_DOWN
+			return e.Dir
+		} else{
+			if orderHandling.CheckUpOrdersBelow(e) == 1{
+				e.Dir = driver.MDIR_DOWN
+				return e.Dir
+			} else if e.Dir != driver.MDIR_STOP{
+				e.Dir = driver.MDIR_STOP
+				return e.Dir
+			}
+		}
+	}
+
+	return e.Dir
+
 }
 
-func StartUp(state State, dir MotorDirection){
-	for (Get_floor_sensor_signal() == -1){
-		Set_motor_speed(MDIR_DOWN)
+
+
+func StartUp(e elevatorStatus.Elevator)elevatorStatus.Elevator{
+	for (driver.Get_floor_sensor_signal() == -1){
+		driver.Set_motor_speed(driver.MDIR_DOWN)
 	}
-	for (Get_floor_sensor_signal() != -1){
-		Set_motor_speed(MDIR_STOP)
+	for (driver.Get_floor_sensor_signal() != -1){
+		driver.Set_motor_speed(driver.MDIR_STOP)
 		break
 	}
 
-	for floor := 0; floor < NUM_FLOORS; floor++{
-		for button := 0; button < NUM_BUTTONS; button++{
+	for floor := 0; floor <driver.NUM_FLOORS; floor++{
+		for button := 0; button < driver.NUM_BUTTONS; button++{
 			if(floor == 0 && button == 1) || (floor == 3 && button == 0){
 			} else{
-				Set_button_lamp(button,floor, 0)
+				driver.Set_button_lamp(button,floor, 0)
 			}
 		}
 	}
 
-	previousFloor = Get_floor_sensor_signal()
-	state = IDLE
-	dir = MDIR_STOP
+	e.PreviousFloor = driver.Get_floor_sensor_signal()
+	e.State = elevatorStatus.IDLE
+	e.Dir = driver.MDIR_STOP
+	return e
 }

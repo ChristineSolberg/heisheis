@@ -19,10 +19,15 @@ const (
 	MDIR_UP 			      = 1
 )
 
-type ButtonEvent struct{
-	Floor int
-	Button int
-}
+type ButtonType int
+
+const (
+	BUTTON_CALL_UP	ButtonType	= 0
+	BUTTON_CALL_DOWN 			= 1
+	BUTTON_COMMAND 				= 2
+)
+
+
 
 var lampChannel = [NUM_FLOORS][NUM_BUTTONS] int{
 	{LIGHT_UP1, LIGHT_DOWN1, LIGHT_COMMAND1},
@@ -112,16 +117,13 @@ func Set_button_lamp(button int, floor int, value int){
 
 func Set_floor_indicator(floor int){
 	
-	if (floor < 0){
-    	fmt.Println("Error: Floor is less than 0")
+	if (floor < 0 || floor > NUM_FLOORS){
+    	fmt.Println("Error: Set_floor_indicator")
 
     }
-      if (floor > NUM_FLOORS){
-    	fmt.Println("Error: Floor is greater than NUM_FLOORS")
+   
 
-    }
-
-	 if (floor & 0x02 != 0) {
+	if (floor & 0x02 != 0) {
         IO_set_bit(LIGHT_FLOOR_IND1);
     } else {
         IO_clear_bit(LIGHT_FLOOR_IND1);
@@ -153,6 +155,19 @@ func Set_stop_lamp(value int) {
     }
 }
 
+func Get_button_signal(button ButtonType, floor int)int{
+	if (floor < 0 || floor > NUM_FLOORS || button < 0 || button > NUM_BUTTONS){
+    	fmt.Println("Error: Get_button_signal")
+
+    }
+
+    if (IO_read_bit(buttonChannels[floor][button]) == 1){
+    	return 1
+    } else {
+    	return 0
+    }
+
+}
 
 func Get_floor_sensor_signal() int{
 

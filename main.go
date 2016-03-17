@@ -1,7 +1,10 @@
 package main
 
 import (
-    "./driver"
+    "./elevatorControl/driver"
+    "./elevatorControl"
+    "./elevatorControl/orderHandling"
+    "./elevatorControl/elevatorStatus"
 
     //"./network"
     //"./message"
@@ -27,8 +30,16 @@ func main() {
 	// }
 
 	//fmt.Println(OrderMatrix)
+	
+	var e elevatorStatus.Elevator
 
-	driver.StartUp(driver.IDLE, driver.MDIR_STOP)
+	e = elevatorControl.StartUp(e)
+	for{
+		e = orderHandling.AddOrderToQueue(e)
+		e = elevatorControl.UpdateFSM(e)
+		
+
+	}
 
     // for {
     //     // Change direction when we reach top/bottom floor
