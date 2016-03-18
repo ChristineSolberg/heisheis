@@ -42,75 +42,89 @@ func AddOrderToQueue(e elevatorStatus.Elevator) elevatorStatus.Elevator{
 
 func ShouldStop(e elevatorStatus.Elevator)int{
 	//Lag denne senere - kanskje i queue
-	floor := driver.Get_floor_sensor_signal();
+	floor := driver.Get_floor_sensor_signal()
+	fmt.Println ("Floor: ", floor)
+	var result int = 0
+
+	//SETT PREVIOUS FLOOR HER!!
+	var previousFloor int = e.PreviousFloor
+	e.PreviousFloor = floor
 	
-	if(floor > e.PreviousFloor){
+	if(floor > previousFloor){
 		if (e.OrderMatrix[floor][2] == 1) || (e.OrderMatrix[floor][0] == 1){
-			return 1;	
+			result = 1	
 		}
-		if (!(CheckUpOrdersAbove(e) == 1 ||CheckDownOrdersAbove(e) == 1)){
-			return 1;				
+		if floor == 3{
+			result = 1
 		}
-	} else if(floor < e.PreviousFloor){
+		if (CheckUpOrdersAbove(e) != 1 && CheckDownOrdersAbove(e) != 1){
+			result = 1				
+		}
+	} else if(floor < previousFloor){
 		if (e.OrderMatrix[floor][2] == 1) || (e.OrderMatrix[floor][1] == 1){
-			return 1;
+			result = 1
 		}
-		if (!(CheckUpOrdersBelow(e) == 1||CheckDownOrdersBelow(e) == 1)){
-			return 1;
+		if floor == 0{
+			result = 1
+		}
+		if (CheckUpOrdersBelow(e) != 1 && CheckDownOrdersBelow(e) != 1){
+			result = 1
 		}
 	}
-	return 0;
+	return result
 }
 
-// Implementer, -1 for ned knapp ovenfra, 1 for for opp knapp ovenfra
 func CheckUpOrdersAbove(e elevatorStatus.Elevator)int{
-	for floor := (e.PreviousFloor+1); floor < driver.NUM_FLOORS; floor++{
+	var result int = 0
+	for floor := e.PreviousFloor+1; floor < driver.NUM_FLOORS; floor++{
 		if(e.OrderMatrix[floor][0] == 1){
-			return 1;
+			fmt.Println("Fant en OPP-bestilling over")
+			result = 1
 		}
 		if(e.OrderMatrix[floor][2] == 1){
-			return 1;
+			result = 1
 		}				
 	}
-	return 0
+	return result
 }
 
 func CheckDownOrdersAbove(e elevatorStatus.Elevator)int{
-	for floor := e.PreviousFloor + 1; floor < driver.NUM_FLOORS; floor++{
-		if(e.OrderMatrix[floor][1] ==1){
-			return 1;
-		} else{
-			return 0;
+	var result int = 0
+	for floor := e.PreviousFloor+1; floor < driver.NUM_FLOORS; floor++{
+		if(e.OrderMatrix[floor][1] == 1){
+			fmt.Println("Fant en NED-bestilling over")
+			result = 1
 		}
 	}
-	return 0;	
+	return result	
 } 
 
 func CheckUpOrdersBelow(e elevatorStatus.Elevator)int{
+	var result int = 0
 	for floor := 0; floor < e.PreviousFloor; floor++{
-		if(e.OrderMatrix[floor][0] ==1){
-			return 1;
-		} else{
-			return 0;
+		if(e.OrderMatrix[floor][0] == 1){
+			fmt.Println("Fant en OPP-bestilling under")
+			result = 1
 		}
 	}
-	return 0;
-
+	return result
 }
 
 func CheckDownOrdersBelow(e elevatorStatus.Elevator)int{
-
+	var result int = 0
 	for floor := 0; floor < e.PreviousFloor; floor++{				
 			if(e.OrderMatrix[floor][1] == 1){
-				return 1;
+				fmt.Println("Fant en NED-bestilling under")
+				result = 1
 			} else if(e.OrderMatrix[floor][2] == 1){
-				return 1;
+				result = 1
 			}	
 	}
-	return 0;
+	return result
 }
 
 func LengthOfQueue(e elevatorStatus.Elevator)int{
+	fmt.Println(e.OrderMatrix)
 	length := 0
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
 		for button := 0; button < driver.NUM_BUTTONS; button++{
@@ -125,39 +139,40 @@ func LengthOfQueue(e elevatorStatus.Elevator)int{
 
 func NewOrderAtCurrentFloor(e elevatorStatus.Elevator)int{
 	floor := driver.Get_floor_sensor_signal()
+	var result int = 0
 	if(floor==3){	
 		if (e.OrderMatrix[floor][1] == 1){
-			return 1;
+			result = 1
 		} else if (e.OrderMatrix[floor][2] == 1){
-			return 1;
+			result = 1
 		}
 	} else if(floor==0){	
 		if (e.OrderMatrix[floor][0] == 1){
-			return 1;
+			result = 1
 		} else if (e.OrderMatrix[floor][2] == 1){
-			return 1;
+			result = 1
 		}
 	} 
 
-	if(e.Dir != -1){
+	if(e.Dir != driver.MDIR_DOWN){
 		if (e.OrderMatrix[floor][0] == 1){
-			return 1;
+			result = 1
 		} else if (e.OrderMatrix[floor][2] == 1){
-			return 1;						
+			result = 1						
 		}
-	} else if(e.Dir != 1){
+	} else if(e.Dir != driver.MDIR_UP){
 		if (e.OrderMatrix[floor][1] == 1){
-			return 1;
+			result = 1
 		} else if (e.OrderMatrix[floor][2] == 1){
-			return 1;						
+			result = 1						
 		}
 	}
-	return 0;
+	return result
 }
 
-func DeleteCompletedOrders(e elevatorStatus.Elevator){
+func DeleteCompletedOrders(e *elevatorStatus.Elevator){
 	floor :=  driver.Get_floor_sensor_signal()
-
+	fmt.Println("Sletter utført bestilling", e.Dir, floor)
 	if floor != -1{
 		if floor == 0{
 			e.OrderMatrix[floor][0] = 0
@@ -167,17 +182,27 @@ func DeleteCompletedOrders(e elevatorStatus.Elevator){
 			e.OrderMatrix[floor][2] = 0
 		}
 
-		if e.Dir== 1{
+		if e.Dir == driver.MDIR_UP{
+			fmt.Println("Sletter når retn er OPP")
 			e.OrderMatrix[floor][0] = 0
 			e.OrderMatrix[floor][2] = 0
-		} else if e.Dir== -1{
+			if (CheckUpOrdersAbove(*e) != 1 && CheckDownOrdersAbove(*e) != 1){
+				e.OrderMatrix[floor][1] = 0
+			}
+
+		} else if e.Dir == driver.MDIR_DOWN{
+			fmt.Println("Sletter når retn er NED")
 			e.OrderMatrix[floor][1] = 0
 			e.OrderMatrix[floor][2] = 0
-		} else if e.Dir== 0{
+			if (CheckUpOrdersBelow(*e) != 1 && CheckDownOrdersBelow(*e) != 1){
+				e.OrderMatrix[floor][0] = 0
+			}
+		} else if e.Dir == driver.MDIR_STOP{
 			e.OrderMatrix[floor][0] = 0
 			e.OrderMatrix[floor][1] = 0
 			e.OrderMatrix[floor][2] = 0
 		}
+		fmt.Println(e.OrderMatrix)
 	}
 
 }
