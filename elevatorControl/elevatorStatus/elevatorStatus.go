@@ -25,6 +25,7 @@ const (
 
 type Elevator struct{
 	Dir driver.MotorDirection
+	CurrentFloor int
 	PreviousFloor int
 	State ElevState
 	OrderMatrix [4][3]int

@@ -42,29 +42,29 @@ func AddOrderToQueue(e elevatorStatus.Elevator) elevatorStatus.Elevator{
 
 func ShouldStop(e elevatorStatus.Elevator)int{
 	//Lag denne senere - kanskje i queue
-	floor := driver.Get_floor_sensor_signal()
-	fmt.Println ("Floor: ", floor)
+	e.CurrentFloor = driver.Get_floor_sensor_signal()
+	fmt.Println ("Floor: ", e.CurrentFloor)
 	var result int = 0
 
 	//SETT PREVIOUS FLOOR HER!!
 	var previousFloor int = e.PreviousFloor
-	e.PreviousFloor = floor
+	e.PreviousFloor = e.CurrentFloor
 	
-	if(floor > previousFloor){
-		if (e.OrderMatrix[floor][2] == 1) || (e.OrderMatrix[floor][0] == 1){
+	if(e.CurrentFloor > previousFloor){
+		if (e.OrderMatrix[e.CurrentFloor][2] == 1) || (e.OrderMatrix[e.CurrentFloor][0] == 1){
 			result = 1	
 		}
-		if floor == 3{
+		if e.CurrentFloor == 3{
 			result = 1
 		}
 		if (CheckUpOrdersAbove(e) != 1 && CheckDownOrdersAbove(e) != 1){
 			result = 1				
 		}
-	} else if(floor < previousFloor){
-		if (e.OrderMatrix[floor][2] == 1) || (e.OrderMatrix[floor][1] == 1){
+	} else if(e.CurrentFloor < previousFloor){
+		if (e.OrderMatrix[e.CurrentFloor][2] == 1) || (e.OrderMatrix[e.CurrentFloor][1] == 1){
 			result = 1
 		}
-		if floor == 0{
+		if e.CurrentFloor == 0{
 			result = 1
 		}
 		if (CheckUpOrdersBelow(e) != 1 && CheckDownOrdersBelow(e) != 1){
@@ -76,7 +76,7 @@ func ShouldStop(e elevatorStatus.Elevator)int{
 
 func CheckUpOrdersAbove(e elevatorStatus.Elevator)int{
 	var result int = 0
-	for floor := e.PreviousFloor+1; floor < driver.NUM_FLOORS; floor++{
+	for floor := e.CurrentFloor+1; floor < driver.NUM_FLOORS; floor++{
 		if(e.OrderMatrix[floor][0] == 1){
 			fmt.Println("Fant en OPP-bestilling over")
 			result = 1
@@ -90,7 +90,7 @@ func CheckUpOrdersAbove(e elevatorStatus.Elevator)int{
 
 func CheckDownOrdersAbove(e elevatorStatus.Elevator)int{
 	var result int = 0
-	for floor := e.PreviousFloor+1; floor < driver.NUM_FLOORS; floor++{
+	for floor := e.CurrentFloor+1; floor < driver.NUM_FLOORS; floor++{
 		if(e.OrderMatrix[floor][1] == 1){
 			fmt.Println("Fant en NED-bestilling over")
 			result = 1
@@ -101,7 +101,7 @@ func CheckDownOrdersAbove(e elevatorStatus.Elevator)int{
 
 func CheckUpOrdersBelow(e elevatorStatus.Elevator)int{
 	var result int = 0
-	for floor := 0; floor < e.PreviousFloor; floor++{
+	for floor := 0; floor < e.CurrentFloor; floor++{
 		if(e.OrderMatrix[floor][0] == 1){
 			fmt.Println("Fant en OPP-bestilling under")
 			result = 1
@@ -112,7 +112,7 @@ func CheckUpOrdersBelow(e elevatorStatus.Elevator)int{
 
 func CheckDownOrdersBelow(e elevatorStatus.Elevator)int{
 	var result int = 0
-	for floor := 0; floor < e.PreviousFloor; floor++{				
+	for floor := 0; floor < e.CurrentFloor; floor++{				
 			if(e.OrderMatrix[floor][1] == 1){
 				fmt.Println("Fant en NED-bestilling under")
 				result = 1
@@ -128,9 +128,9 @@ func LengthOfQueue(e elevatorStatus.Elevator)int{
 	length := 0
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
 		for button := 0; button < driver.NUM_BUTTONS; button++{
-			if (button == 1 && floor == 0) || (button == 2 && floor == 3){
+			if (button == 1 && floor == 0) || (button == 0 && floor == 3){
 			}else{
-				length += e.OrderMatrix[floor][button] //lag matrisen!
+				length += e.OrderMatrix[floor][button] 
 			}
 		}
 	} 
@@ -138,32 +138,34 @@ func LengthOfQueue(e elevatorStatus.Elevator)int{
 }
 
 func NewOrderAtCurrentFloor(e elevatorStatus.Elevator)int{
-	floor := driver.Get_floor_sensor_signal()
+	e.CurrentFloor = driver.Get_floor_sensor_signal()
 	var result int = 0
-	if(floor==3){	
-		if (e.OrderMatrix[floor][1] == 1){
+	if(e.CurrentFloor==3){	
+		if (e.OrderMatrix[e.CurrentFloor][1] == 1){
 			result = 1
-		} else if (e.OrderMatrix[floor][2] == 1){
+		} else if (e.OrderMatrix[e.CurrentFloor][2] == 1){
 			result = 1
 		}
-	} else if(floor==0){	
-		if (e.OrderMatrix[floor][0] == 1){
+	} else if(e.CurrentFloor==0){	
+		if (e.OrderMatrix[e.CurrentFloor][0] == 1){
 			result = 1
-		} else if (e.OrderMatrix[floor][2] == 1){
+		} else if (e.OrderMatrix[e.CurrentFloor][2] == 1){
 			result = 1
 		}
 	} 
 
 	if(e.Dir != driver.MDIR_DOWN){
-		if (e.OrderMatrix[floor][0] == 1){
+		if (e.OrderMatrix[e.CurrentFloor][0] == 1){
 			result = 1
-		} else if (e.OrderMatrix[floor][2] == 1){
+		} else if (e.OrderMatrix[e.CurrentFloor][2] == 1){
 			result = 1						
 		}
-	} else if(e.Dir != driver.MDIR_UP){
-		if (e.OrderMatrix[floor][1] == 1){
+	} 
+
+	if(e.Dir != driver.MDIR_UP){
+		if (e.OrderMatrix[e.CurrentFloor][1] == 1){
 			result = 1
-		} else if (e.OrderMatrix[floor][2] == 1){
+		} else if (e.OrderMatrix[e.CurrentFloor][2] == 1){
 			result = 1						
 		}
 	}
@@ -171,36 +173,37 @@ func NewOrderAtCurrentFloor(e elevatorStatus.Elevator)int{
 }
 
 func DeleteCompletedOrders(e *elevatorStatus.Elevator){
-	floor :=  driver.Get_floor_sensor_signal()
-	fmt.Println("Sletter utført bestilling", e.Dir, floor)
-	if floor != -1{
-		if floor == 0{
-			e.OrderMatrix[floor][0] = 0
-			e.OrderMatrix[floor][2] = 0
-		} else if floor == 3{
-			e.OrderMatrix[floor][1] = 0
-			e.OrderMatrix[floor][2] = 0
+	e.CurrentFloor =  driver.Get_floor_sensor_signal()
+	fmt.Println("Sletter utført bestilling", e.Dir, e.CurrentFloor)
+	if e.CurrentFloor != -1{
+		if e.CurrentFloor == 0{
+			e.OrderMatrix[e.CurrentFloor][0] = 0
+			e.OrderMatrix[e.CurrentFloor][2] = 0
+			
+		} else if e.CurrentFloor == 3{
+			e.OrderMatrix[e.CurrentFloor][1] = 0
+			e.OrderMatrix[e.CurrentFloor][2] = 0
 		}
 
 		if e.Dir == driver.MDIR_UP{
 			fmt.Println("Sletter når retn er OPP")
-			e.OrderMatrix[floor][0] = 0
-			e.OrderMatrix[floor][2] = 0
+			e.OrderMatrix[e.CurrentFloor][0] = 0
+			e.OrderMatrix[e.CurrentFloor][2] = 0
 			if (CheckUpOrdersAbove(*e) != 1 && CheckDownOrdersAbove(*e) != 1){
-				e.OrderMatrix[floor][1] = 0
+				e.OrderMatrix[e.CurrentFloor][1] = 0
 			}
 
 		} else if e.Dir == driver.MDIR_DOWN{
 			fmt.Println("Sletter når retn er NED")
-			e.OrderMatrix[floor][1] = 0
-			e.OrderMatrix[floor][2] = 0
+			e.OrderMatrix[e.CurrentFloor][1] = 0
+			e.OrderMatrix[e.CurrentFloor][2] = 0
 			if (CheckUpOrdersBelow(*e) != 1 && CheckDownOrdersBelow(*e) != 1){
-				e.OrderMatrix[floor][0] = 0
+				e.OrderMatrix[e.CurrentFloor][0] = 0
 			}
 		} else if e.Dir == driver.MDIR_STOP{
-			e.OrderMatrix[floor][0] = 0
-			e.OrderMatrix[floor][1] = 0
-			e.OrderMatrix[floor][2] = 0
+			e.OrderMatrix[e.CurrentFloor][0] = 0
+			e.OrderMatrix[e.CurrentFloor][1] = 0
+			e.OrderMatrix[e.CurrentFloor][2] = 0
 		}
 		fmt.Println(e.OrderMatrix)
 	}

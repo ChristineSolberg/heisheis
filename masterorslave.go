@@ -31,7 +31,6 @@ func InitMasterSlave() (int, int){
 	var slave int := 0
 
 
-
 	select{
 		case <- timer.C
 			// bli master

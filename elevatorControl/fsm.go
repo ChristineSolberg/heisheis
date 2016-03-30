@@ -9,10 +9,6 @@ import(
 	"./elevatorStatus"
 )
 
-//var doorTimerReset = make(chan bool)
-
-//VI MÅ HUSKE Å OPPDATERE PREVIOUS FLOOR NÅR VI PASSERER ELLER STOPPER I EN ETASJE
-
 
 func UpdateFSM(e elevatorStatus.Elevator)elevatorStatus.Elevator{
 	time.Sleep(time.Millisecond * 100)
@@ -63,8 +59,11 @@ func updateFSM_IDLE(event elevatorStatus.Event, e elevatorStatus.Elevator)elevat
 		orderHandling.DeleteCompletedOrders(&e)
 		e.State = elevatorStatus.DOOR_OPEN
 		break
+	case elevatorStatus.TIMER_OUT:
+		fmt.Println("UpdateFSM_IDLE: timer out")
 	case elevatorStatus.NO_EVENT:
 		fmt.Println("UpdateFSM_IDLE: no event")
+		fmt.Println("Length of queue", orderHandling.LengthOfQueue(e))
 		//do nothing
 		break
 	default:
@@ -82,7 +81,9 @@ func updateFSM_GO_UP(event elevatorStatus.Event,e elevatorStatus.Elevator)elevat
 			driver.Set_motor_speed(driver.MDIR_STOP)
 			//Start timer, og legg true på doorTimeout når det har gått 3 sek.
 			e.DoorTimeout = time.Tick(time.Second * 3)
+			fmt.Println("før delete i FLOOR_REACHED")
 			orderHandling.DeleteCompletedOrders(&e)
+			fmt.Println("etter delete i FLOOR_REACHED")
 			e.PreviousFloor = driver.Get_floor_sensor_signal()
 			e.Dir = GetNextDirection(e)
 			e.State = elevatorStatus.DOOR_OPEN
@@ -159,7 +160,7 @@ func updateFSM_DOOR_OPEN(event elevatorStatus.Event, e elevatorStatus.Elevator)e
 
 
 func getNextEvent(e elevatorStatus.Elevator)elevatorStatus.Event{
-	floor := driver.Get_floor_sensor_signal()
+	e.CurrentFloor = driver.Get_floor_sensor_signal()
 	var event elevatorStatus.Event
 
 	select{
@@ -171,7 +172,7 @@ func getNextEvent(e elevatorStatus.Elevator)elevatorStatus.Event{
 		fmt.Println("ingenting på channel")
 	}
 	//fmt.Println("NewOrderAtCurrentFloor: ", orderHandling.NewOrderAtCurrentFloor(e))
-	if (floor != -1) && (e.PreviousFloor != floor){
+	if (e.CurrentFloor != -1) && (e.PreviousFloor != e.CurrentFloor){
 		event = elevatorStatus.FLOOR_REACHED
 		fmt.Println("Event: FLOOR_REACHED")
 	} else if ((e.State == elevatorStatus.IDLE)||(e.State == elevatorStatus.DOOR_OPEN)) && orderHandling.NewOrderAtCurrentFloor(e) == 1{
@@ -189,13 +190,13 @@ func getNextEvent(e elevatorStatus.Elevator)elevatorStatus.Event{
 }
 
 func GetNextDirection(e elevatorStatus.Elevator)driver.MotorDirection{
-	floor := driver.Get_floor_sensor_signal()
+	e.CurrentFloor = driver.Get_floor_sensor_signal()
 
-	if floor == 0 || floor == 3{
+	if e.CurrentFloor == 0 || e.CurrentFloor == 3{
 		e.Dir = driver.MDIR_STOP
 	}
 	fmt.Println("Retning etter første if")
-	if(e.Dir != driver.MDIR_DOWN && floor != 3){
+	if(e.Dir != driver.MDIR_DOWN && e.CurrentFloor != 3){
 		fmt.Println("Inne i getnextdirOPP")
 		if(orderHandling.CheckUpOrdersAbove(e) == 1){
 			e.Dir = driver.MDIR_UP
@@ -208,7 +209,7 @@ func GetNextDirection(e elevatorStatus.Elevator)driver.MotorDirection{
 		}
 	}
 
-	if(e.Dir != driver.MDIR_UP && floor != 0){
+	if(e.Dir != driver.MDIR_UP && e.CurrentFloor != 0){
 		fmt.Println("Inne i getnextdirNED")
 		if orderHandling.CheckDownOrdersBelow(e) == 1{
 			e.Dir = driver.MDIR_DOWN

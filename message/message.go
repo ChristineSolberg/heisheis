@@ -6,6 +6,7 @@ import(
 	//"time"
 	"../network"
 	"encoding/json"
+	"./elevatorStatus"
 
 	)
 
@@ -13,9 +14,8 @@ const(
 	IAmAlive = 1
 	PlacedOrder = 2
 	StateUpdate = 3
-
+	CompletedOrder = 4
 )
-
 
 const(
 	Master		= 1
@@ -35,16 +35,15 @@ const(
 	Fourth		= 4
 )
 
-
-
-
 type UpdateMessage struct{
 	MessageType int
 	ElevatorId int
 	MasterOrSlave int
 	NewOrder [2] float64   // [button, floor]
-	CurrentState [2] float64 //[current floor, current direction]
-	OrderMatrix [3][4] int
+	ElevatorStatus elevatorStatus.Elevator
+	MasterMatrix [4][3]int
+	//CurrentState [2] float64 //[current floor, current direction]
+	//OrderMatrix [3][4] int
 }
 
 func RecvMsg(conn *net.UDPConn, msgChan chan UpdateMessage) UpdateMessage{
