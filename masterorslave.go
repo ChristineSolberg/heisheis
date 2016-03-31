@@ -32,15 +32,17 @@ func InitMasterSlave(msgChan chan message.UpdateMessage, e elevatorStatus.Elevat
 }
 
 func Master(conn *net.UDPConn, msgChan chan UpdateMessage){
+	elevators := make(elevatorStatus.Elevator[], 0)
 	var msg UpdateMessage
 	message.RecvMsg(conn, msgChan)
 	msg := <- msgChan
 	msgType := msg.MessageType 
 
-	switch{
+	switch(message.MessageType){
 		case msgType == 1:
 			//
 		case msgType == 2: 
+			// Husk legge inn i MasterMatrix
 			// Kall kostfunksjon
 		case msgType == 3:
 			//

@@ -6,9 +6,6 @@ import(
 	"math"
 )
 
-var elevator message.UpdateMessage
-
-
 
 func CalculateCost(elevator elevatorStatus.Elevator, Order message.UpdateMessage)int{
 	var distanceCost int := math.Abs(elevator.CurrentFloor-Order.NewOrder[1])*5
@@ -24,39 +21,41 @@ func CalculateCost(elevator elevatorStatus.Elevator, Order message.UpdateMessage
 		directionCost = 40
 	} else if (elevDir == message.Down || elevDir == message.Up) && (belowOrAbove == 0){
 		directionCost = 40
-
 	}
 
-	queueCost := 5 * lengthOfQueue(elevator)
+	queueCost := 20 * lengthOfQueue(elevator)
 	totalCost := distanceCost + directionCost + queueCost
 	
 	return totalCost
-
 	
 }
 
 
-func AssignOrdersToElevator(elevator message.UpdateMessage, cost int){
-	
-	elevCost := make(map[int]int)
-	elevCost[elevator.ElevatorId] = cost
-
-
-
-
-	//smallestCost := 1000
-	// for (går igjennom alle heiser){
-	// 	cost[elev] = CalulateCost(elev)
-	// 	if cost[elev] < cost
-	// 		oppdater
-	//}
-
-	var min int := 1000
-	for elevID, cost := range elevCost{
-
+func AssignOrdersToElevator(order message.UpdateMessage, elevators []elevatorStatus.Elevator, networkChan chan UpdateMessage){
+	min_value := 1000 
+	var assignedElev elevatorStatus.Elevator.ElevatorId
+	for _, elev := range elevators {
+		value := CalculateCost(elev, order)
+		if value < min_value {
+			min_value = value
+			assignedElev = elev
+		}
 	}
-
+	networkChan <- assignedElev
 }
+
+
+
+func AssignOrdersToElevator(order message.UpdateMessage, elevators []elevatorStatus.Elevator){
+	min_value := 1000 
+	var min_elev elevatorStatus.Elevator.ElevatorId
+	for elev, cost := range elevators {
+		value := CalculateCost(elev, order)
+		if value < min_value {
+			min_value = value
+			min_elev = elev
+		}
+	}
 
 
 func lengthOfQueue(elevator message.UpdateMessage)int{
