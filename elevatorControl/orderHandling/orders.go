@@ -10,6 +10,7 @@ import(
 
 // this is for one elevator, når n heiser, skal få ordre fra master og ikke les av knappetrykk
 
+// For tre heiser: Dette skal kun gjøres når knappene inni heisen trykkes
 func AddOrderToQueue(e elevatorStatus.Elevator) elevatorStatus.Elevator{
 	fmt.Println("inne i addorderqueue")
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{

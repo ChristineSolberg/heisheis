@@ -42,31 +42,22 @@ func AssignOrdersToElevator(order message.UpdateMessage, elevators []elevatorSta
 		}
 	}
 	networkChan <- assignedElev
+	//return assignedElev?? trenger ikke channel før senere, tror jeg
 }
 
 
 
-func AssignOrdersToElevator(order message.UpdateMessage, elevators []elevatorStatus.Elevator){
-	min_value := 1000 
-	var min_elev elevatorStatus.Elevator.ElevatorId
-	for elev, cost := range elevators {
-		value := CalculateCost(elev, order)
-		if value < min_value {
-			min_value = value
-			min_elev = elev
-		}
-	}
 
 
-func lengthOfQueue(elevator message.UpdateMessage)int{
-	length := 0
-	for floor := 0; floor < driver.NUM_FLOORS; floor++{
-		for button := 0; button < driver.NUM_BUTTONS; button++{
-			if (button == 1 && floor == 0) || (button == 2 && floor == 3){
-			}else{
-				length += elevator.OrderMatrix[button][floor]
-			}
-		}
-	} 
-	return length
-}
+// func lengthOfQueue(elevator message.UpdateMessage)int{
+// 	length := 0
+// 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
+// 		for button := 0; button < driver.NUM_BUTTONS; button++{
+// 			if (button == 1 && floor == 0) || (button == 2 && floor == 3){
+// 			}else{
+// 				length += elevator.OrderMatrix[button][floor]
+// 			}
+// 		}
+// 	} 
+// 	return length
+// }

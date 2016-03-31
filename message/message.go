@@ -13,8 +13,9 @@ import(
 const(
 	IAmAlive = 1
 	PlacedOrder = 2
-	StateUpdate = 3
-	CompletedOrder = 4
+	//AssignedOrder -- Trenger vi dette også?
+	CompletedOrder = 3
+	StateUpdate = 4
 )
 
 const(

@@ -31,22 +31,32 @@ func InitMasterSlave(msgChan chan message.UpdateMessage, e elevatorStatus.Elevat
 	}
 }
 
-func Master(conn *net.UDPConn, msgChan chan UpdateMessage){
+func Master(conn *net.UDPConn, msgChan chan UpdateMessage){ // +order message.UpdateMessage
 	elevators := make(elevatorStatus.Elevator[], 0)
 	var msg UpdateMessage
 	message.RecvMsg(conn, msgChan)
 	msg := <- msgChan
-	msgType := msg.MessageType 
+	msgType := msg.MessageType
 
 	switch(message.MessageType){
-		case msgType == 1:
+		case msgType == IAmAlive:
 			//
-		case msgType == 2: 
+		case msgType == PlacedOrder: 
 			// Husk legge inn i MasterMatrix
-			// Kall kostfunksjon
-		case msgType == 3:
+			// button := msg.NewOrder[0]
+			// floor := msg.NewOrder[1]
+			// msg.MasterMatrix[floor][button] = 1
+			
+			// Kall kostfunksjon og legg bestillingen (+valgt heis) på en channel - mellomledd før nettverket tar bestillingen videre herfra?
+			// if button < 1{
+			// 		AssignedElev := AssignOrdersToElevator(order, elevators, networkChan) //-- Finn på nytt navn på channel - trenger vi channel her egentlig?
+			//		msgChan<- UpdateMessage{MessageType: AssignedOrder}
+			// }
+
+
+		case msgType == CompletedOrder:
 			//
-		case msgType == 4:
+		case msgType == StateUpdate:
 			// 
 	}
 }
