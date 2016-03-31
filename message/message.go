@@ -37,8 +37,6 @@ const(
 
 type UpdateMessage struct{
 	MessageType int
-	ElevatorId int
-	MasterOrSlave int
 	NewOrder [2] float64   // [button, floor]
 	ElevatorStatus elevatorStatus.Elevator
 	MasterMatrix [4][3]int

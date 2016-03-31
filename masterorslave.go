@@ -10,39 +10,25 @@ import(
 
 
 
-func InitMasterSlave() (int, int){
+func InitMasterSlave(msgChan chan message.UpdateMessage, e elevatorStatus.Elevator){
 	var recv int := 0
-	//timerChan := make(chan string)
-	msgChan := make(chan string)
-
 	var msg message.UpdateMessage
 	timer := time.NewTimer(time.Second*2)
 
 	for{
-		msg := message.RecvMsg()
-		recv := msg.MessageType
+		msg = message.RecvMsg()
+		recv = msg.MessageType
 		if recv != 0{
 			msgChan <- recv
 			break
 		}
 	}
-
-	var master int := 0
-	var slave int := 0
-
-
 	select{
 		case <- timer.C
-			// bli master
-			master = 1
-
+			e.MasterOrSlave = message.Master
 		case <- msgChan
-			//bli slave
-			slave = 1
-
+			e.MasterOrSlave = message.Slave
 	}
-
-	return master, slave
 }
 
 func Master(conn *net.UDPConn, msgChan chan UpdateMessage){
@@ -58,5 +44,7 @@ func Master(conn *net.UDPConn, msgChan chan UpdateMessage){
 			// Kall kostfunksjon
 		case msgType == 3:
 			//
+		case msgType == 4:
+			// 
 	}
 }

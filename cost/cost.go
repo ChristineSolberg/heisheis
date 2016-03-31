@@ -10,13 +10,13 @@ var elevator message.UpdateMessage
 
 
 
-func CalculateCost(elevator message.UpdateMessage, Order message.UpdateMessage)(map[int]int){
-	distanceCost := math.Abs(elevator.CurrentState[0]-Order.NewOrder[1])*5
-	directionCost := -1
-	belowOrAbove := elevator.CurrentState[0]-Order.NewOrder[1]
-	elevDir := elevator.CurrentState[1]
+func CalculateCost(elevator elevatorStatus.Elevator, Order message.UpdateMessage)int{
+	var distanceCost int := math.Abs(elevator.CurrentFloor-Order.NewOrder[1])*5
+	var directionCost int := -1
+	belowOrAbove := elevator.CurrentFloor-Order.NewOrder[1] 
+	elevDir := elevator.CurrentFloor
 
-	if elevator.CurrentState[1] == message.Idle{
+	if elevator.CurrentFloor == message.Idle{
 		directionCost = 0
 	} else if (elevDir == message.Down && belowOrAbove > 0) || (elevDir == message.Up && belowOrAbove < 0){
 		directionCost = 10
@@ -29,14 +29,17 @@ func CalculateCost(elevator message.UpdateMessage, Order message.UpdateMessage)(
 
 	queueCost := 5 * lengthOfQueue(elevator)
 	totalCost := distanceCost + directionCost + queueCost
-	elevCost := make(map[int]int)
-	elevCost[elevator.ElevatorId] = totalCost
-	return elevCost
+	
+	return totalCost
+
+	
 }
 
 
-func AssignOrdersToElevator(elevator message.UpdateMessage){
+func AssignOrdersToElevator(elevator message.UpdateMessage, cost int){
 	
+	elevCost := make(map[int]int)
+	elevCost[elevator.ElevatorId] = cost
 
 
 
@@ -47,6 +50,11 @@ func AssignOrdersToElevator(elevator message.UpdateMessage){
 	// 	if cost[elev] < cost
 	// 		oppdater
 	//}
+
+	var min int := 1000
+	for elevID, cost := range elevCost{
+
+	}
 
 }
 
