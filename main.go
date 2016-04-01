@@ -1,14 +1,15 @@
 package main
 
 import (
-    "./elevatorControl/driver"
-    "./elevatorControl"
-    "./elevatorControl/orderHandling"
-    "./elevatorControl/elevatorStatus"
+    // "./elevatorControl/driver"
+    // "./elevatorControl"
+    // "./elevatorControl/orderHandling"
+    // "./elevatorControl/elevatorStatus"
 
     //"./network"
     //"./message"
     "fmt"
+    "net"
     //"time"
 )
 
@@ -16,13 +17,14 @@ import (
 
 func main() {
 	//Kjører en heis
-	driver.Init()
-	var e elevatorStatus.Elevator // er det godkjent med globale variabler i main?
-	e = elevatorControl.StartUp(e)
-	for{
-		e = orderHandling.AddOrderToQueue(e)
-		e = elevatorControl.UpdateFSM(e)
-	}
+	// driver.Init()
+	// var e elevatorStatus.Elevator // er det godkjent med globale variabler i main?
+	// e = elevatorControl.StartUp(e)
+	// for{
+	// 	e = orderHandling.AddOrderToQueue(e)
+	// 	e = elevatorControl.UpdateFSM(e)
+	
+	// }
 
 
 // Tester nettverksmodulen
@@ -53,11 +55,5 @@ func main() {
 	// 	}
 	// }
  
-
-
-    
-    fmt.Println("main3")
-    
-
 
 }

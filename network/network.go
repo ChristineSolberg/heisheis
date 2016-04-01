@@ -3,6 +3,7 @@ package network
 import(
 	"net"
 	"fmt"
+	"strings"
 	)
 
 
@@ -54,4 +55,10 @@ func UDPListen(conn *net.UDPConn, buffer []byte) int{
 func UDPWrite(conn *net.UDPConn, buffer []byte){
 	fmt.Println("Sending msg")
 	conn.Write(buffer)
+}
+
+func GetIpAddress()string{
+	ipAdd,_ := net.InterfaceAddrs() 
+    ip:=strings.Split(ipAdd[1].String(),"/")[0]
+    return ip
 }

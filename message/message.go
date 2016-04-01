@@ -6,16 +6,16 @@ import(
 	//"time"
 	"../network"
 	"encoding/json"
-	"./elevatorStatus"
+	"../elevatorControl/elevatorStatus"
 
 	)
 
 const(
 	IAmAlive = 1
 	PlacedOrder = 2
-	//AssignedOrder -- Trenger vi dette også?
-	CompletedOrder = 3
-	StateUpdate = 4
+	AssignedOrder = 3
+	CompletedOrder = 4
+	StateUpdate = 5
 )
 
 const(
@@ -38,7 +38,7 @@ const(
 
 type UpdateMessage struct{
 	MessageType int
-	NewOrder [2] float64   // [button, floor]
+	Order [2] int   // [button, floor]
 	ElevatorStatus elevatorStatus.Elevator
 	MasterMatrix [4][3]int
 }

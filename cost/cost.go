@@ -1,16 +1,25 @@
 package cost
 
 import(
-	"../driver"
+	//"../elevatorControl/driver"
 	"../message"
-	"math"
+	"../elevatorControl/orderHandling"
+	"../elevatorControl/elevatorStatus"
 )
 
+func absValue(sum int)int{
+	if sum < 0{
+		return -sum
+	} else{
+		return sum
+	}
+}
 
 func CalculateCost(elevator elevatorStatus.Elevator, Order message.UpdateMessage)int{
-	var distanceCost int := math.Abs(elevator.CurrentFloor-Order.NewOrder[1])*5
-	var directionCost int := -1
-	belowOrAbove := elevator.CurrentFloor-Order.NewOrder[1] 
+	sum := elevator.CurrentFloor-Order.Order[1]
+	var distanceCost int = absValue(sum)*5
+	var directionCost int = -1
+	belowOrAbove := elevator.CurrentFloor-Order.Order[1] 
 	elevDir := elevator.CurrentFloor
 
 	if elevator.CurrentFloor == message.Idle{
@@ -23,7 +32,7 @@ func CalculateCost(elevator elevatorStatus.Elevator, Order message.UpdateMessage
 		directionCost = 40
 	}
 
-	queueCost := 20 * lengthOfQueue(elevator)
+	queueCost := 20 * orderHandling.LengthOfQueue(elevator)
 	totalCost := distanceCost + directionCost + queueCost
 	
 	return totalCost
@@ -31,18 +40,17 @@ func CalculateCost(elevator elevatorStatus.Elevator, Order message.UpdateMessage
 }
 
 
-func AssignOrdersToElevator(order message.UpdateMessage, elevators []elevatorStatus.Elevator, networkChan chan UpdateMessage){
+func AssignOrdersToElevator(order message.UpdateMessage, elevators []elevatorStatus.Elevator)int{
 	min_value := 1000 
-	var assignedElev elevatorStatus.Elevator.ElevatorId
+	var assignedElev int //elevatorStatus.Elevator.ElevatorId
 	for _, elev := range elevators {
 		value := CalculateCost(elev, order)
 		if value < min_value {
 			min_value = value
-			assignedElev = elev
+			assignedElev = elev.RecieverIP
 		}
 	}
-	networkChan <- assignedElev
-	//return assignedElev?? trenger ikke channel før senere, tror jeg
+	return assignedElev
 }
 
 
