@@ -25,21 +25,23 @@ func AddOrderToQueue(e elevatorStatus.Elevator) elevatorStatus.Elevator{
 	return e
 }
 
-// for n antall heiser.  ordren skal sendes til master i stedet for å legges inn i matrisen for n heiser
-// func readButtons() int{
-// 	result int = 0
-// 	for floor := 0; floor < NUM_FLOORS; floor++{
-// 		for button := 0; button < NUM_BUTTONS; button++{
-// 			if (floor == 0 && button == 1) || (floor == 3 && button == 0) || (floor < 0){
-// 			} else if Get_button_signal(button, floor) == 1{
-// 				// sett knappelys
-				// send ordre til master
-// 				result = 1
-// 			}
-// 		}
-// 	}
-// 	return result
-// }
+//for n antall heiser.  ordren skal sendes til master i stedet for å legges inn i matrisen for n heiser
+func readButtons(buttonChan chan [2]int, e elevatorStatus.Elevator){
+	var order [2]int
+	for floor := 0; floor < driver.NUM_FLOORS; floor++{
+		for button := driver.BUTTON_CALL_UP; button < driver.NUM_BUTTONS; button++{
+			if (floor == 0 && button == 1) || (floor == 3 && button == 0) || (floor < 0){
+			} else if driver.Get_button_signal(button, floor) == 1{
+				// sett knappelys
+
+				order[0] = floor
+				order[1] = int(button)
+
+				buttonChan <-order
+			}
+		}
+	}	
+}
 
 func ShouldStop(e elevatorStatus.Elevator)int{
 	//Lag denne senere - kanskje i queue

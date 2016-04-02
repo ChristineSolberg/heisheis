@@ -62,3 +62,6 @@ func GetIpAddress()string{
     ip:=strings.Split(ipAdd[1].String(),"/")[0]
     return ip
 }
+
+
+

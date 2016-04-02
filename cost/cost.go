@@ -40,14 +40,14 @@ func CalculateCost(elevator elevatorStatus.Elevator, Order message.UpdateMessage
 }
 
 
-func AssignOrdersToElevator(order message.UpdateMessage, elevators []elevatorStatus.Elevator)int{
+func AssignOrdersToElevator(order message.UpdateMessage, elevators map[string]elevatorStatus.Elevator)string{
 	min_value := 1000 
-	var assignedElev int //elevatorStatus.Elevator.ElevatorId
+	var assignedElev string //elevatorStatus.Elevator.ElevatorId
 	for _, elev := range elevators {
 		value := CalculateCost(elev, order)
 		if value < min_value {
 			min_value = value
-			assignedElev = elev.RecieverIP
+			assignedElev = order.RecieverIP
 		}
 	}
 	return assignedElev
@@ -57,15 +57,3 @@ func AssignOrdersToElevator(order message.UpdateMessage, elevators []elevatorSta
 
 
 
-// func lengthOfQueue(elevator message.UpdateMessage)int{
-// 	length := 0
-// 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
-// 		for button := 0; button < driver.NUM_BUTTONS; button++{
-// 			if (button == 1 && floor == 0) || (button == 2 && floor == 3){
-// 			}else{
-// 				length += elevator.OrderMatrix[button][floor]
-// 			}
-// 		}
-// 	} 
-// 	return length
-// }

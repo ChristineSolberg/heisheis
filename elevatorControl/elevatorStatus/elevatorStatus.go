@@ -28,8 +28,7 @@ type Elevator struct{
 	CurrentFloor int
 	PreviousFloor int
 	State ElevState
-	SenderIP int
-	RecieverIP int
+	IP string
 	MasterOrSlave int
 	OrderMatrix [4][3]int
 	DoorTimeout <-chan time.Time

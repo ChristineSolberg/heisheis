@@ -10,9 +10,10 @@ import(
 )
 
 
-func UpdateFSM(e elevatorStatus.Elevator)elevatorStatus.Elevator{
+func UpdateFSM(e elevatorStatus.Elevator, inToFSM chan elevatorStatus.Elevator, outOfFSM chan elevatorStatus.Elevator){
 	time.Sleep(time.Millisecond * 100)
 	fmt.Println("Inne i updateFSM")
+	e = <- inToFSM
 	event := getNextEvent(e)
 	
 	fmt.Println("Direction: ", e.Dir)
@@ -36,7 +37,7 @@ func UpdateFSM(e elevatorStatus.Elevator)elevatorStatus.Elevator{
 	default:
 		fmt.Println("Error: No valid state in UpdateFSM")
 	}
-	return e
+	outOfFSM <- e
 }
 
 

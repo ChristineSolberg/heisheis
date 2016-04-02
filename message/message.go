@@ -38,6 +38,7 @@ const(
 
 type UpdateMessage struct{
 	MessageType int
+	RecieverIP string
 	Order [2] int   // [button, floor]
 	ElevatorStatus elevatorStatus.Elevator
 	MasterMatrix [4][3]int
@@ -94,3 +95,18 @@ func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage){
 	
 }
 
+func MessageManager(toElev chan UpdateMessage, fromElev chan UpdateMessage){
+
+ 	recvChan := make(chan UpdateMessage)
+    sendChan := make(chan UpdateMessage)
+
+    conn1 := network.ServerConnection()
+    conn2 := network.ClientConnection()
+
+    go RecvMsg(conn1,recvChan)
+    go SendMsg(conn2,sendChan)
+
+    // sjekk om mottatt melding er sent fra en av våre heiser, før det legges ut på channel til main
+     
+
+}

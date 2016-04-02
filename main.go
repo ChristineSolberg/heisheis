@@ -1,21 +1,60 @@
 package main
 
 import (
-    // "./elevatorControl/driver"
-    // "./elevatorControl"
-    // "./elevatorControl/orderHandling"
-    // "./elevatorControl/elevatorStatus"
+    "./elevatorControl/driver"
+    "./elevatorControl"
+    "./elevatorControl/orderHandling"
+    "./elevatorControl/elevatorStatus"
+    "./masterorslave"
 
-    //"./network"
-    //"./message"
-    "fmt"
-    "net"
-    //"time"
+    "./network"
+    "./message"
+    //"fmt"
+    //"net"
+    "time"
 )
 
 
 
 func main() {
+
+	// Pseudokode for hvordan main skal gå:
+
+	var e elevatorStatus.Elevator
+	driver.Init()
+
+	e = elevatorControl.StartUp(e)
+
+	
+	// initialiser nettverksdel her
+
+	recvNetwork := make(chan message.UpdateMessage, 10)
+	sendNetwork := make(chan message.UpdateMessage, 10)
+
+	go Alive(sendNetwork) 
+
+	go message.MessageManager(recvNetwork,sendNetwork)
+
+	go masterorslave.Master(recvNetwork,sendNetwork,inToFSM)
+
+
+	buttonChan := make(chan [2]int, 30)
+	go orderHandling.ReadButtons(buttonChan)
+	sendNetwork <-message.UpdateMessage{MessageType: message.PlacedOrder, Order: <-buttonChan,
+		ElevatorStatus: elevatorStatus.Elevator{IP: network.GetIpAddress()}}
+	// må lage en updatemessage med knappetrykket som sendes over nettverket til master
+
+	//FSM
+	inToFSM := make(chan elevatorStatus.Elevator,10)
+	outOfFSM := make(chan elevatorStatus.Elevator,10)
+	go elevatorControl.UpdateFSM(e,inToFSM,outOfFSM)
+
+
+
+
+
+
+
 	//Kjører en heis
 	// driver.Init()
 	// var e elevatorStatus.Elevator // er det godkjent med globale variabler i main?
@@ -56,4 +95,17 @@ func main() {
 	// }
  
 
+}
+
+
+func Alive(sendNetwork chan message.UpdateMessage){
+	ticker := time.NewTicker(time.Millisecond*500)
+    
+	for{
+		select{
+			case <-ticker.C:
+				sendNetwork <-message.UpdateMessage{MessageType: IAmAlive,
+					ElevatorStatus: elevatorStatus.Elevator{IP: network.GetIpAddress()}}
+		}
+	}
 }
