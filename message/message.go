@@ -19,11 +19,6 @@ const(
 )
 
 const(
-	Master		= 1
-	Slave 		= 0
-)
-
-const(
 	Down 		= -1
 	Idle 		= 0
 	Up 			= 1
