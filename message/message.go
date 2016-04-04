@@ -35,17 +35,19 @@ type UpdateMessage struct{
 	MessageType int
 	RecieverIP string
 	Order [2] int   // [button, floor]
+	DelOrder [4] int
 	ElevatorStatus elevatorStatus.Elevator
-	MasterMatrix [4][3]int
+	
 }
 
-func RecvMsg(conn *net.UDPConn, msgChan chan UpdateMessage) UpdateMessage{
+func RecvMsg(conn *net.UDPConn, msgChan chan UpdateMessage) {
 	// må kjøre serverConnection() for denne funksjonen kjøres
 	buffer := make([]byte, 1024) 
-	var msg UpdateMessage
+	
+	
 
 	for{
-		fmt.Println("inne i forløkken i recv")
+		var msg UpdateMessage
 		size := network.UDPListen(conn,buffer)
 		fmt.Println(size)
 		array := buffer[0:size]
@@ -53,22 +55,24 @@ func RecvMsg(conn *net.UDPConn, msgChan chan UpdateMessage) UpdateMessage{
 		if err == nil{
 			msgChan <- msg
 		}
+		fmt.Println("Mottatt melding: ", msg)
 	}
 	fmt.Println("Recv2")
 	defer conn.Close()
 
-	return msg
+	//return msg
 }
 
 func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage){
 	// må kjøre clientConnection() for denne funksjonen kjøres
 	defer conn.Close()
 	for {
-		encoded,_ := json.Marshal(<-msgChan)
-		
+		v := <-msgChan
+		fmt.Println("melding",v)
+		encoded,err := json.Marshal(v)
+		fmt.Println("error", err)
 		buf := []byte(encoded)
 		network.UDPWrite(conn, buf)
-		fmt.Println("Alive")
 
 		fmt.Println("Send ferdig")
 	}
@@ -91,15 +95,12 @@ func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage){
 }
 
 func MessageManager(toElev chan UpdateMessage, fromElev chan UpdateMessage){
+	conn1 := network.ServerConnection()
+	conn2 := network.ClientConnection()
+	
+	go RecvMsg(conn1,toElev)
+	go SendMsg(conn2,fromElev)
 
- 	recvChan := make(chan UpdateMessage)
-    sendChan := make(chan UpdateMessage)
-
-    conn1 := network.ServerConnection()
-    conn2 := network.ClientConnection()
-
-    go RecvMsg(conn1,recvChan)
-    go SendMsg(conn2,sendChan)
 
     // sjekk om mottatt melding er sent fra en av våre heiser, før det legges ut på channel til main
      

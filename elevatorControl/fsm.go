@@ -10,38 +10,42 @@ import(
 )
 
 
-func UpdateFSM(e elevatorStatus.Elevator, inToFSM chan elevatorStatus.Elevator, outOfFSM chan elevatorStatus.Elevator){
+func UpdateFSM(e elevatorStatus.Elevator, inToFSM chan elevatorStatus.Elevator, outOfFSM chan elevatorStatus.Elevator, DelOrder chan [4]int){
 	time.Sleep(time.Millisecond * 100)
 	fmt.Println("Inne i updateFSM")
 	e = <- inToFSM
-	event := getNextEvent(e)
+	var DoorTimeout <-chan time.Time
+	event := getNextEvent(e, DoorTimeout)
+	
 	
 	fmt.Println("Direction: ", e.Dir)
 	switch(e.State){
 	case elevatorStatus.IDLE:
 		fmt.Println("State: IDLE")
-		e = updateFSM_IDLE(event, e)
+		e = updateFSM_IDLE(event, e, DelOrder, DoorTimeout)
 		break
 	case elevatorStatus.GO_UP:
 		fmt.Println("State: GO UP")
-		e = updateFSM_GO_UP(event, e)
+		e = updateFSM_GO_UP(event, e, DelOrder, DoorTimeout)
 		break
 	case elevatorStatus.GO_DOWN:
 		fmt.Println("State: GO DOWN")
-		e = updateFSM_GO_DOWN(event, e)
+		e = updateFSM_GO_DOWN(event, e, DelOrder, DoorTimeout)
 		break
 	case elevatorStatus.DOOR_OPEN:
 		fmt.Println("State: DOOR OPEN")
-		e = updateFSM_DOOR_OPEN(event, e)
+		e = updateFSM_DOOR_OPEN(event, e, DelOrder, DoorTimeout)
 		break
 	default:
 		fmt.Println("Error: No valid state in UpdateFSM")
 	}
 	outOfFSM <- e
 }
+// Nå vil vi legge ut en "ny" e på outOfFSM selv om Staten ikke nødvendigvis er oppdatert.
+// Blir dette for ofte? Burde vi heller sjekke om staten er forskjellig fra forrige gang, og kun oppdatere da?
 
 
-func updateFSM_IDLE(event elevatorStatus.Event, e elevatorStatus.Elevator)elevatorStatus.Elevator{
+func updateFSM_IDLE(event elevatorStatus.Event, e elevatorStatus.Elevator, DelOrder chan [4]int, DoorTimeout <-chan time.Time)elevatorStatus.Elevator{
 	switch(event){
 	case elevatorStatus.NEXT_ORDER:
 		e.Dir = GetNextDirection(e)
@@ -56,8 +60,8 @@ func updateFSM_IDLE(event elevatorStatus.Event, e elevatorStatus.Elevator)elevat
 		break
 	case elevatorStatus.NEW_ORDER_AT_CURRENT:
 		fmt.Println("UpdateFSM_IDLE: new order at current")
-		e.DoorTimeout = time.Tick(time.Second * 3)
-		orderHandling.DeleteCompletedOrders(&e)
+		DoorTimeout = time.Tick(time.Second * 3)
+		orderHandling.DeleteCompletedOrders(&e, DelOrder)
 		e.State = elevatorStatus.DOOR_OPEN
 		break
 	case elevatorStatus.TIMER_OUT:
@@ -75,15 +79,15 @@ func updateFSM_IDLE(event elevatorStatus.Event, e elevatorStatus.Elevator)elevat
 
 
 
-func updateFSM_GO_UP(event elevatorStatus.Event,e elevatorStatus.Elevator)elevatorStatus.Elevator{
+func updateFSM_GO_UP(event elevatorStatus.Event,e elevatorStatus.Elevator,DelOrder chan [4]int, DoorTimeout <-chan time.Time)elevatorStatus.Elevator{
 	switch (event){
 	case elevatorStatus.FLOOR_REACHED:
 		if (orderHandling.ShouldStop(e) == 1){
 			driver.Set_motor_speed(driver.MDIR_STOP)
 			//Start timer, og legg true på doorTimeout når det har gått 3 sek.
-			e.DoorTimeout = time.Tick(time.Second * 3)
+			DoorTimeout = time.Tick(time.Second * 3)
 			fmt.Println("før delete i FLOOR_REACHED")
-			orderHandling.DeleteCompletedOrders(&e)
+			orderHandling.DeleteCompletedOrders(&e, DelOrder)
 			fmt.Println("etter delete i FLOOR_REACHED")
 			e.PreviousFloor = driver.Get_floor_sensor_signal()
 			e.Dir = GetNextDirection(e)
@@ -101,7 +105,7 @@ func updateFSM_GO_UP(event elevatorStatus.Event,e elevatorStatus.Elevator)elevat
 	return e
 }
 
-func updateFSM_GO_DOWN(event elevatorStatus.Event, e elevatorStatus.Elevator)elevatorStatus.Elevator{
+func updateFSM_GO_DOWN(event elevatorStatus.Event, e elevatorStatus.Elevator, DelOrder chan [4]int, DoorTimeout <-chan time.Time)elevatorStatus.Elevator{
 	switch (event){
 	case elevatorStatus.FLOOR_REACHED:
 		fmt.Println("stop: ", orderHandling.ShouldStop(e))
@@ -109,8 +113,8 @@ func updateFSM_GO_DOWN(event elevatorStatus.Event, e elevatorStatus.Elevator)ele
 			driver.Set_motor_speed(driver.MDIR_STOP)
 			e.State = elevatorStatus.DOOR_OPEN
 			//Start timer, og legg true på doorTimeout når det har gått 3 sek.
-			e.DoorTimeout = time.Tick(time.Second * 3)
-			orderHandling.DeleteCompletedOrders(&e)
+			DoorTimeout = time.Tick(time.Second * 3)
+			orderHandling.DeleteCompletedOrders(&e, DelOrder)
 			e.PreviousFloor = driver.Get_floor_sensor_signal()
 			e.Dir = GetNextDirection(e)
 		} else{
@@ -126,7 +130,7 @@ func updateFSM_GO_DOWN(event elevatorStatus.Event, e elevatorStatus.Elevator)ele
 	return e
 }
 
-func updateFSM_DOOR_OPEN(event elevatorStatus.Event, e elevatorStatus.Elevator)elevatorStatus.Elevator{
+func updateFSM_DOOR_OPEN(event elevatorStatus.Event, e elevatorStatus.Elevator, DelOrder chan [4]int, DoorTimeout <-chan time.Time)elevatorStatus.Elevator{
 	switch(event){
 	case elevatorStatus.TIMER_OUT:
 		driver.Set_door_open_lamp(0) //Er dette greit? Sjekk ut notatan :) å sette lys her altså
@@ -145,9 +149,9 @@ func updateFSM_DOOR_OPEN(event elevatorStatus.Event, e elevatorStatus.Elevator)e
 		}*/
 		break
 	case elevatorStatus.NEW_ORDER_AT_CURRENT:
-		e.DoorTimeout = time.Tick(time.Second * 3)
+		DoorTimeout = time.Tick(time.Second * 3)
 		e.State = elevatorStatus.DOOR_OPEN
-		orderHandling.DeleteCompletedOrders(&e)
+		orderHandling.DeleteCompletedOrders(&e, DelOrder)
 		break
 	case elevatorStatus.NO_EVENT:
 		fmt.Println("Length of queue", orderHandling.LengthOfQueue(e))
@@ -160,12 +164,12 @@ func updateFSM_DOOR_OPEN(event elevatorStatus.Event, e elevatorStatus.Elevator)e
 }
 
 
-func getNextEvent(e elevatorStatus.Elevator)elevatorStatus.Event{
+func getNextEvent(e elevatorStatus.Elevator, DoorTimeout <-chan time.Time)elevatorStatus.Event{
 	e.CurrentFloor = driver.Get_floor_sensor_signal()
 	var event elevatorStatus.Event
 
 	select{
-	case <-e.DoorTimeout:
+	case <-DoorTimeout:
 		event = elevatorStatus.TIMER_OUT
 		fmt.Println("Event: TIMER_OUT")
 		return event

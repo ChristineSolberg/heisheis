@@ -10,7 +10,7 @@ import(
 
 
 func ServerConnection()*net.UDPConn{ //er det bra funksjonsnavn??
-	port := ":20012"
+	port := ":20023"
 	udpAddress, err := net.ResolveUDPAddr("udp", port)
 	if err != nil {
 		fmt.Println("Error: ", err)
@@ -25,7 +25,7 @@ func ServerConnection()*net.UDPConn{ //er det bra funksjonsnavn??
 }
 
 func ClientConnection() *net.UDPConn{
-	port := ":20012"
+	port := ":20023"
 	serverAddress, err := net.ResolveUDPAddr("udp", "129.241.187.255" + port)
 	if err != nil {
 		fmt.Println("Error: ", err)
@@ -48,7 +48,7 @@ func UDPListen(conn *net.UDPConn, buffer []byte) int{
 	if err != nil {
 		fmt.Println("Error: ", err)
 	}
-	fmt.Println("YEEEEES")	
+	fmt.Println("size: ", size)	
 	return size
 }
 

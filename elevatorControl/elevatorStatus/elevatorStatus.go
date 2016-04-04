@@ -2,7 +2,7 @@ package elevatorStatus
 
 import (
 	"../driver"
-	"time"
+	//"time"
 	)
 
 type ElevState int
@@ -30,5 +30,6 @@ type Elevator struct{
 	State ElevState
 	IP string
 	OrderMatrix [4][3]int
-	DoorTimeout <-chan time.Time
+	Master string
+	//DoorTimeout <-chan time.Time
 }
