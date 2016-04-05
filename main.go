@@ -18,10 +18,7 @@ import (
 
 func main() {
 
-
-
-
-	// Pseudokode for hvordan main skal gå:
+// Pseudokode for hvordan main skal gå:
 
 	var e elevatorStatus.Elevator
 	//elevs := make(map[string]*elevatorStatus.Elevator)
@@ -37,18 +34,16 @@ func main() {
 	recvNetwork := make(chan message.UpdateMessage, 100)
 	sendNetwork := make(chan message.UpdateMessage, 100)
 
-	go Alive(sendNetwork,e) 
-	go message.MessageManager(recvNetwork,sendNetwork)
+	conn1 := network.ServerConnection()
+	conn2 := network.ClientConnection()
+	go message.RecvMsg(conn1,recvNetwork)
+	go message.SendMsg(conn2,sendNetwork)
+
+	go Alive(sendNetwork,&e) 
 	
-
-
-
-
 	inToFSM := make(chan elevatorStatus.Elevator,100)
-	outOfFSM := make(chan elevatorStatus.Elevator,100)
-
+	sendNewStateUpdate := make(chan bool,100)
 	go eventHandler.EventHandler(recvNetwork,sendNetwork,inToFSM)
-
 
 	buttonChan := make(chan [2]int, 20)
 	go orderHandling.ReadButtons(buttonChan,e)
@@ -58,15 +53,14 @@ func main() {
 	//FSM
 	deleteChan := make(chan [4]int, 10)
 	fmt.Println("Elevator senere i løkka: ", e)
-	go elevatorControl.UpdateFSM(e,inToFSM,outOfFSM, deleteChan)
+	go elevatorControl.UpdateFSM(&e,inToFSM,sendNewStateUpdate, deleteChan)
 
 	
 
 
 	for{
 		select{
-			case <-outOfFSM:
-				e = <-outOfFSM
+			case <-sendNewStateUpdate:
 				sendNetwork <-message.UpdateMessage{MessageType: message.StateUpdate, ElevatorStatus: e}
 			case <-buttonChan:
 				sendNetwork <-message.UpdateMessage{MessageType: message.PlacedOrder, Order: <-buttonChan,
@@ -130,7 +124,7 @@ func main() {
  }
 
 
-func Alive(sendNetwork chan message.UpdateMessage, e elevatorStatus.Elevator){
+func Alive(sendNetwork chan message.UpdateMessage, e *elevatorStatus.Elevator){
 	ticker := time.NewTicker(time.Millisecond*500)
 	for{
 		select{

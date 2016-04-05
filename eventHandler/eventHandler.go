@@ -76,7 +76,7 @@ func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string){
 func EventHandler(recvChan chan message.UpdateMessage, sendChan chan message.UpdateMessage, inToFSM chan elevatorStatus.Elevator){ // +order message.UpdateMessage
 	var msg message.UpdateMessage
 	
-	var MasterMatrix [4][3]int
+	var MasterMatrix [driver.NUM_FLOORS][driver.NUM_BUTTONS]int
 	fmt.Println("MasterMatrix: ",MasterMatrix)
 	elevs := make(map[string]*elevatorStatus.Elevator)
 	elevatorTimers := make(map[string]*time.Timer)
@@ -102,12 +102,15 @@ func EventHandler(recvChan chan message.UpdateMessage, sendChan chan message.Upd
 				if shouldAppend == true{
 					fmt.Println("Oppdager heis for første gang: ")
 					elevs[msg.ElevatorStatus.IP] = new(elevatorStatus.Elevator)
-					elevs[msg.ElevatorStatus.IP].Dir = msg.ElevatorStatus.Dir
-					elevs[msg.ElevatorStatus.IP].CurrentFloor = msg.ElevatorStatus.CurrentFloor
-					elevs[msg.ElevatorStatus.IP].PreviousFloor = msg.ElevatorStatus.PreviousFloor
-					elevs[msg.ElevatorStatus.IP].State = msg.ElevatorStatus.State
-					elevs[msg.ElevatorStatus.IP].IP = msg.ElevatorStatus.IP
+					var e elevatorStatus.Elevator// bør fungere, spørr mathias 
 
+					e.Dir = msg.ElevatorStatus.Dir
+					e.CurrentFloor = msg.ElevatorStatus.CurrentFloor
+					e.PreviousFloor = msg.ElevatorStatus.PreviousFloor
+					e.State = msg.ElevatorStatus.State
+					e.IP = msg.ElevatorStatus.IP
+
+					elevs[msg.ElevatorStatus.IP] = &e
 
 
 					for _,elev := range elevs{

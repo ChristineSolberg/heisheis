@@ -93,16 +93,3 @@ func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage){
 
 	
 }
-
-func MessageManager(toElev chan UpdateMessage, fromElev chan UpdateMessage){
-	conn1 := network.ServerConnection()
-	conn2 := network.ClientConnection()
-	
-	go RecvMsg(conn1,toElev)
-	go SendMsg(conn2,fromElev)
-
-
-    // sjekk om mottatt melding er sent fra en av våre heiser, før det legges ut på channel til main
-     
-
-}
