@@ -5,6 +5,7 @@ import(
 	"../message"
 	"../elevatorControl/orderHandling"
 	"../elevatorControl/elevatorStatus"
+	"fmt"
 )
 
 func absValue(sum int)int{
@@ -42,12 +43,14 @@ func CalculateCost(elevator elevatorStatus.Elevator, Order message.UpdateMessage
 
 func AssignOrdersToElevator(order message.UpdateMessage, elevators map[string]*elevatorStatus.Elevator)string{
 	min_value := 1000 
+	neword := order.Order
+	fmt.Println("Ny ordre: ", neword)
 	var assignedElev string //elevatorStatus.Elevator.ElevatorId
 	for _, elev := range elevators {
 		value := CalculateCost(*elev, order)
 		if value < min_value {
 			min_value = value
-			assignedElev = order.RecieverIP
+			assignedElev = elev.IP
 		}
 	}
 	return assignedElev

@@ -49,7 +49,7 @@ func RecvMsg(conn *net.UDPConn, msgChan chan UpdateMessage) {
 	for{
 		var msg UpdateMessage
 		size := network.UDPListen(conn,buffer)
-		fmt.Println(size)
+		fmt.Println("size i recvmsg:", size)
 		array := buffer[0:size]
 		err := json.Unmarshal(array, &msg)
 		if err == nil{
@@ -68,7 +68,7 @@ func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage){
 	defer conn.Close()
 	for {
 		v := <-msgChan
-		fmt.Println("melding",v)
+		fmt.Println("Melding via network: ",v)
 		encoded,err := json.Marshal(v)
 		fmt.Println("error", err)
 		buf := []byte(encoded)

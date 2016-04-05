@@ -9,7 +9,7 @@ import (
 
     "./network"
     "./message"
-    //"fmt"
+    "fmt"
     //"net"
     "time"
 )
@@ -24,38 +24,40 @@ func main() {
 	// Pseudokode for hvordan main skal gå:
 
 	var e elevatorStatus.Elevator
+	//elevs := make(map[string]*elevatorStatus.Elevator)
 	
 	driver.Init()
 
 	e = elevatorControl.StartUp(e)
+	fmt.Println("StartUp values: ", e)
 
 	
 	// initialiser nettverksdel her
 
-	recvNetwork := make(chan message.UpdateMessage, 10)
-	sendNetwork := make(chan message.UpdateMessage, 10)
+	recvNetwork := make(chan message.UpdateMessage, 100)
+	sendNetwork := make(chan message.UpdateMessage, 100)
 
-	go Alive(sendNetwork) 
+	go Alive(sendNetwork,e) 
 	go message.MessageManager(recvNetwork,sendNetwork)
 	
 
 
 
 
-	inToFSM := make(chan elevatorStatus.Elevator,10)
-	outOfFSM := make(chan elevatorStatus.Elevator,10)
+	inToFSM := make(chan elevatorStatus.Elevator,100)
+	outOfFSM := make(chan elevatorStatus.Elevator,100)
 
 	go eventHandler.EventHandler(recvNetwork,sendNetwork,inToFSM)
 
 
-	buttonChan := make(chan [2]int, 30)
+	buttonChan := make(chan [2]int, 20)
 	go orderHandling.ReadButtons(buttonChan,e)
 	
 	// må lage en updatemessage med knappetrykket som sendes over nettverket til master
 
 	//FSM
 	deleteChan := make(chan [4]int, 10)
-
+	fmt.Println("Elevator senere i løkka: ", e)
 	go elevatorControl.UpdateFSM(e,inToFSM,outOfFSM, deleteChan)
 
 	
@@ -64,13 +66,13 @@ func main() {
 	for{
 		select{
 			case <-outOfFSM:
-				e = <- outOfFSM
-				sendNetwork <- message.UpdateMessage{MessageType: message.StateUpdate, ElevatorStatus: e}
-			case <- buttonChan:
+				e = <-outOfFSM
+				sendNetwork <-message.UpdateMessage{MessageType: message.StateUpdate, ElevatorStatus: e}
+			case <-buttonChan:
 				sendNetwork <-message.UpdateMessage{MessageType: message.PlacedOrder, Order: <-buttonChan,
 				ElevatorStatus: elevatorStatus.Elevator{IP: network.GetIpAddress()}}
-			case <- deleteChan:
-				sendNetwork <- message.UpdateMessage{MessageType: message.CompletedOrder, DelOrder: <- deleteChan, ElevatorStatus: e}
+			case <-deleteChan:
+				sendNetwork <-message.UpdateMessage{MessageType: message.CompletedOrder, DelOrder: <-deleteChan, ElevatorStatus: e}
 
 		}
 	}
@@ -128,14 +130,12 @@ func main() {
  }
 
 
-func Alive(sendNetwork chan message.UpdateMessage){
+func Alive(sendNetwork chan message.UpdateMessage, e elevatorStatus.Elevator){
 	ticker := time.NewTicker(time.Millisecond*500)
-    
 	for{
 		select{
 			case <-ticker.C:
-				sendNetwork <-message.UpdateMessage{MessageType: message.IAmAlive,
-					ElevatorStatus: elevatorStatus.Elevator{IP: network.GetIpAddress()}}
+				sendNetwork <-message.UpdateMessage{MessageType: message.IAmAlive, ElevatorStatus: e}
 		}
 	}
 }

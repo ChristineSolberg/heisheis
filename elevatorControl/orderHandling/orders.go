@@ -2,6 +2,7 @@ package orderHandling
 
 import(
 	"fmt"
+	"time"
 	"../driver"
 	"../elevatorStatus"
 )
@@ -11,17 +12,24 @@ import(
 // this is for one elevator, når n heiser, skal få ordre fra master og ikke les av knappetrykk
 
 // For tre heiser: Dette skal kun gjøres når knappene inni heisen trykkes
-func AddOrderToQueue(e elevatorStatus.Elevator) elevatorStatus.Elevator{
+func AddOrderToQueue(e elevatorStatus.Elevator, order [2]int) elevatorStatus.Elevator{
 	fmt.Println("inne i addorderqueue")
-	for floor := 0; floor < driver.NUM_FLOORS; floor++{
-		for button := driver.BUTTON_CALL_UP; button <= driver.BUTTON_COMMAND ; button++{
-			if (floor == 0 && button == 1) || (floor == 3 && button == 0) || (floor < 0){
-			} else if driver.Get_button_signal(button, floor) == 1{
-				e.OrderMatrix[floor][button] = 1
-				// sett knappelys
-			}
-		}
-	}
+	floor := order[0]
+	button := order[1]
+	e.OrderMatrix[floor][button] = 1
+
+
+
+
+	// for floor := 0; floor < driver.NUM_FLOORS; floor++{
+	// 	for button := driver.BUTTON_CALL_UP; button <= driver.BUTTON_COMMAND ; button++{
+	// 		if (floor == 0 && button == 1) || (floor == 3 && button == 0) || (floor < 0){
+	// 		} else if {
+	// 			e.OrderMatrix[floor][button] = 1
+	// 			// sett knappelys
+	// 		}
+	// 	}
+	// }
 	return e
 }
 
@@ -42,8 +50,23 @@ func ReadButtons(buttonChan chan [2]int, e elevatorStatus.Elevator){
 				}
 			}
 		}
+	time.Sleep(time.Millisecond * 10)
 	}
 }
+
+
+func UpdateOrderMatrix(update [4][3]int, old [4][3]int)[4][3]int{
+	var updated[driver.NUM_FLOORS][driver.NUM_BUTTONS] int
+	for floor := 0; floor < driver.NUM_FLOORS; floor++{
+		for button := driver.BUTTON_CALL_UP; button < driver.NUM_BUTTONS; button++{
+			if old[floor][button] == 0{
+			updated[floor][button] = update[floor][button] + old[floor][button]
+			}
+		}
+	}
+	return updated
+}
+
 
 func ShouldStop(e elevatorStatus.Elevator)int{
 	//Lag denne senere - kanskje i queue

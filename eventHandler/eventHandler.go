@@ -13,8 +13,8 @@ import(
 
 type AllElevators struct{
 
-	elevs map[string]*elevatorStatus.Elevator
-	MasterMatrix [4][3]int
+	
+	
 	
 }
 
@@ -48,34 +48,40 @@ type AllElevators struct{
 	}
 }*/
 
-func selectMaster(elevators AllElevators){
-	fmt.Println("select between: ", elevators.elevs)
+func selectMaster(elevs map[string]*elevatorStatus.Elevator){
+	fmt.Println("select between: ", elevs)
 	var minimumIP string = "129.241.187.256"
-	for ip,elev := range elevators.elevs{
+	for ip,_ := range elevs{
 
 		//if len(elevators.elevs) != 0{
 		if ip < minimumIP {
-			ip = elev.IP
+			minimumIP = ip
 		}
 		//}
 	}
-	for _,elev := range elevators.elevs{
+	for _,elev := range elevs{
+		fmt.Println("Elev: ", elev, " Master: ", elev.Master)
 		elev.Master = minimumIP
+		fmt.Println("Registrert master: ", elev.Master)
 	} 
 	fmt.Println("New master: ", minimumIP)
 }
 
-func deleteElevator(elevators AllElevators,IP string){
-	delete(elevators.elevs,IP)
-	selectMaster(elevators)
+func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string){
+	delete(elevs,IP)
+	selectMaster(elevs)
 }
 
 
 func EventHandler(recvChan chan message.UpdateMessage, sendChan chan message.UpdateMessage, inToFSM chan elevatorStatus.Elevator){ // +order message.UpdateMessage
 	var msg message.UpdateMessage
-	//var elevators AllElevators
-	elevators.elevs = make(map[string]*elevatorStatus.Elevator)
+	
+	var MasterMatrix [4][3]int
+	fmt.Println("MasterMatrix: ",MasterMatrix)
+	elevs := make(map[string]*elevatorStatus.Elevator)
 	elevatorTimers := make(map[string]*time.Timer)
+	fmt.Println("Map: ", elevs)
+
 	
 	for{
 		msg = <-recvChan
@@ -86,7 +92,7 @@ func EventHandler(recvChan chan message.UpdateMessage, sendChan chan message.Upd
 		switch(msgType){
 			case message.IAmAlive:
 				var shouldAppend bool = true
-				for ip,_ := range elevators.elevs{
+				for ip,_ := range elevs{
 					if ip == msg.ElevatorStatus.IP{
 						elevatorTimers[ip].Reset(time.Second*2)
 						shouldAppend = false
@@ -95,39 +101,67 @@ func EventHandler(recvChan chan message.UpdateMessage, sendChan chan message.Upd
 				}	
 				if shouldAppend == true{
 					fmt.Println("Oppdager heis for første gang: ")
-					elevators.elevs[msg.ElevatorStatus.IP] = new(elevatorStatus.Elevator)
-					elevators.elevs[msg.ElevatorStatus.IP] = msg.ElevatorStatus
-					fmt.Println("Elevators: ", elevators)
-					elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() {deleteElevator(elevators,msg.ElevatorStatus.IP)})
-					selectMaster(elevators)
-					
+					elevs[msg.ElevatorStatus.IP] = new(elevatorStatus.Elevator)
+					elevs[msg.ElevatorStatus.IP].Dir = msg.ElevatorStatus.Dir
+					elevs[msg.ElevatorStatus.IP].CurrentFloor = msg.ElevatorStatus.CurrentFloor
+					elevs[msg.ElevatorStatus.IP].PreviousFloor = msg.ElevatorStatus.PreviousFloor
+					elevs[msg.ElevatorStatus.IP].State = msg.ElevatorStatus.State
+					elevs[msg.ElevatorStatus.IP].IP = msg.ElevatorStatus.IP
+
+
+
+					for _,elev := range elevs{
+						fmt.Println("Elevators in map: ", elev)
+					} 
+			
+					elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() {deleteElevator(elevs,msg.ElevatorStatus.IP)})
+					selectMaster(elevs)
+					for _,elev := range elevs{
+						fmt.Println("Elevators in map after master: ", elev)
+					} 
 				}			
 
 			case message.PlacedOrder:
+				fmt.Println("fått placedorder")
 				floor := msg.Order[0]
 				button := msg.Order[1]
-				elevators.MasterMatrix[floor][button] = 1
-				if msg.ElevatorStatus.Master == network.GetIpAddress(){ 
-					
-					// Kall kostfunksjon og legg bestillingen (+valgt heis) på en channel - mellomledd før nettverket tar bestillingen videre herfra?
-					if button < 2{
-						AssignedElev := cost.AssignOrdersToElevator(msg, elevators.elevs)
-						sendChan <-message.UpdateMessage{MessageType: message.AssignedOrder, Order: msg.Order, RecieverIP: AssignedElev}
-							
-							//ElevatorStatus: elevatorStatus.Elevator{RecieverIP: AssignedElev}}
-					} else if button == 2{
-						sendChan <-message.UpdateMessage{MessageType: message.AssignedOrder, Order: msg.Order, RecieverIP: msg.ElevatorStatus.IP}
-							
-							//ElevatorStatus: elevatorStatus.Elevator{RecieverIP: msg.ElevatorStatus.SenderIP}}
+				fmt.Println("Master før if: ", MasterMatrix[floor][button])
+				if MasterMatrix[floor][button] == 0{
+					fmt.Println("floor: ", floor, "button: ", button)
+					MasterMatrix[floor][button] = 1
+					fmt.Println("Mastermatrix: ", MasterMatrix)
+					fmt.Println("master: ", elevs[msg.ElevatorStatus.IP].Master, " GetIpAddress: ",network.GetIpAddress() )
+					if elevs[msg.ElevatorStatus.IP].Master == network.GetIpAddress(){ 
+						
+						// Kall kostfunksjon og legg bestillingen (+valgt heis) på en channel - mellomledd før nettverket tar bestillingen videre herfra?
+						if button < 2{
+							AssignedElev := cost.AssignOrdersToElevator(msg, elevs)
+							fmt.Println("AssignedElev: ", AssignedElev)
+							sendChan <-message.UpdateMessage{MessageType: message.AssignedOrder, Order: msg.Order, RecieverIP: AssignedElev}
+							fmt.Println("Sender AssignedOrder fra master")
+							//meldingmelding := <-sendChan
+							//fmt.Println ("AssignedOrder:", meldingmelding)
+								
+								//ElevatorStatus: elevatorStatus.Elevator{RecieverIP: AssignedElev}}
+						} else if button == 2{
+							sendChan <-message.UpdateMessage{MessageType: message.AssignedOrder, Order: msg.Order, RecieverIP: msg.ElevatorStatus.IP}
+								
+								//ElevatorStatus: elevatorStatus.Elevator{RecieverIP: msg.ElevatorStatus.SenderIP}}
+						}
 					}
-				}
+				}	
 
 
 			case message.AssignedOrder:
 				// Ta imot og legg til bestillinger for master (må ha en lik case i func Slave)
+				fmt.Println("RecieverIP - Assigned: ", msg.RecieverIP)
 				if msg.RecieverIP == network.GetIpAddress(){
-					*elevators.elevs[msg.RecieverIP] = orderHandling.AddOrderToQueue(*elevators.elevs[msg.RecieverIP])
-						inToFSM <- *elevators.elevs[msg.RecieverIP]
+					*elevs[msg.RecieverIP] = orderHandling.AddOrderToQueue(*elevs[msg.RecieverIP], msg.Order)
+					for _,elev := range elevs{
+						fmt.Println("Elevators in map i AssignedOrder: ", elev)
+					}
+
+					inToFSM <- *elevs[msg.RecieverIP]
 
 				}
 			case message.CompletedOrder:
@@ -137,12 +171,17 @@ func EventHandler(recvChan chan message.UpdateMessage, sendChan chan message.Upd
 
 				for button := 0; button < driver.NUM_BUTTONS; button++{
 					if del[button] == 1{
-						elevators.MasterMatrix[floor][button] = 0
+						MasterMatrix[floor][button] = 0
 					}
 				}
 
 			case message.StateUpdate:
-				*elevators.elevs[msg.ElevatorStatus.IP] = msg.ElevatorStatus
+				//*elevs[msg.ElevatorStatus.IP] = msg.ElevatorStatus
+				elevs[msg.ElevatorStatus.IP].Dir = msg.ElevatorStatus.Dir
+				elevs[msg.ElevatorStatus.IP].CurrentFloor = msg.ElevatorStatus.CurrentFloor
+				elevs[msg.ElevatorStatus.IP].PreviousFloor = msg.ElevatorStatus.PreviousFloor
+				elevs[msg.ElevatorStatus.IP].State = msg.ElevatorStatus.State
+				elevs[msg.ElevatorStatus.IP].IP = msg.ElevatorStatus.IP
 
 		}
 	}

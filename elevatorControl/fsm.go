@@ -7,39 +7,59 @@ import(
 	"time"
 	"./orderHandling"
 	"./elevatorStatus"
+	"../network"
 )
 
 
 func UpdateFSM(e elevatorStatus.Elevator, inToFSM chan elevatorStatus.Elevator, outOfFSM chan elevatorStatus.Elevator, DelOrder chan [4]int){
-	time.Sleep(time.Millisecond * 100)
-	fmt.Println("Inne i updateFSM")
-	e = <- inToFSM
-	var DoorTimeout <-chan time.Time
-	event := getNextEvent(e, DoorTimeout)
-	
-	
-	fmt.Println("Direction: ", e.Dir)
-	switch(e.State){
-	case elevatorStatus.IDLE:
-		fmt.Println("State: IDLE")
-		e = updateFSM_IDLE(event, e, DelOrder, DoorTimeout)
-		break
-	case elevatorStatus.GO_UP:
-		fmt.Println("State: GO UP")
-		e = updateFSM_GO_UP(event, e, DelOrder, DoorTimeout)
-		break
-	case elevatorStatus.GO_DOWN:
-		fmt.Println("State: GO DOWN")
-		e = updateFSM_GO_DOWN(event, e, DelOrder, DoorTimeout)
-		break
-	case elevatorStatus.DOOR_OPEN:
-		fmt.Println("State: DOOR OPEN")
-		e = updateFSM_DOOR_OPEN(event, e, DelOrder, DoorTimeout)
-		break
-	default:
-		fmt.Println("Error: No valid state in UpdateFSM")
+	for{	
+		fmt.Println("e in UpdateFSM: ", e)
+
+		var DoorTimeout <-chan time.Time
+		
+		newOrder := <- inToFSM
+		e.OrderMatrix = orderHandling.UpdateOrderMatrix(newOrder.OrderMatrix,e.OrderMatrix)
+		// //fmt.Println("newOrder: ", newOrder)
+		// fmt.Println("newOrderMatrix: ", e.OrderMatrix)
+		fmt.Println("Inne i updateFSM")
+		
+
+		select{
+		case newOrder := <-inToFSM:
+			fmt.Println("newOrder: ", newOrder)
+			e.OrderMatrix = orderHandling.UpdateOrderMatrix(newOrder.OrderMatrix,e.OrderMatrix)
+			fmt.Println("newOrderMatrix: ", e.OrderMatrix)
+		default:
+			fmt.Println("Ingen nye ordre")
+		}
+		
+		time.Sleep(time.Millisecond * 100)
+		
+		event := getNextEvent(e, DoorTimeout)
+		
+		fmt.Println("Direction: ", e.Dir)
+		switch(e.State){
+		case elevatorStatus.IDLE:
+			fmt.Println("State: IDLE")
+			e = updateFSM_IDLE(event, e, DelOrder, DoorTimeout)
+			break
+		case elevatorStatus.GO_UP:
+			fmt.Println("State: GO UP")
+			e = updateFSM_GO_UP(event, e, DelOrder, DoorTimeout)
+			break
+		case elevatorStatus.GO_DOWN:
+			fmt.Println("State: GO DOWN")
+			e = updateFSM_GO_DOWN(event, e, DelOrder, DoorTimeout)
+			break
+		case elevatorStatus.DOOR_OPEN:
+			fmt.Println("State: DOOR OPEN")
+			e = updateFSM_DOOR_OPEN(event, e, DelOrder, DoorTimeout)
+			break
+		default:
+			fmt.Println("Error: No valid state in UpdateFSM")
+		}
+		outOfFSM <- e
 	}
-	outOfFSM <- e
 }
 // Nå vil vi legge ut en "ny" e på outOfFSM selv om Staten ikke nødvendigvis er oppdatert.
 // Blir dette for ofte? Burde vi heller sjekke om staten er forskjellig fra forrige gang, og kun oppdatere da?
@@ -52,8 +72,10 @@ func updateFSM_IDLE(event elevatorStatus.Event, e elevatorStatus.Elevator, DelOr
 		driver.Set_motor_speed(e.Dir)
 		if (e.Dir == driver.MDIR_UP){
 			e.State = elevatorStatus.GO_UP
+			fmt.Println("Ny state: GO_UP")
 		} else if(e.Dir == driver.MDIR_DOWN){
 			e.State = elevatorStatus.GO_DOWN
+			fmt.Println("Ny state: GO_DOWN")
 		} else{
 			e.State = elevatorStatus.IDLE
 		}
@@ -80,6 +102,7 @@ func updateFSM_IDLE(event elevatorStatus.Event, e elevatorStatus.Elevator, DelOr
 
 
 func updateFSM_GO_UP(event elevatorStatus.Event,e elevatorStatus.Elevator,DelOrder chan [4]int, DoorTimeout <-chan time.Time)elevatorStatus.Elevator{
+	fmt.Println("inne i updateFSM_GO_UP")
 	switch (event){
 	case elevatorStatus.FLOOR_REACHED:
 		if (orderHandling.ShouldStop(e) == 1){
@@ -166,6 +189,7 @@ func updateFSM_DOOR_OPEN(event elevatorStatus.Event, e elevatorStatus.Elevator, 
 
 func getNextEvent(e elevatorStatus.Elevator, DoorTimeout <-chan time.Time)elevatorStatus.Event{
 	e.CurrentFloor = driver.Get_floor_sensor_signal()
+	fmt.Println("CurrentFloor: ", e.CurrentFloor)
 	var event elevatorStatus.Event
 
 	select{
@@ -250,8 +274,10 @@ func StartUp(e elevatorStatus.Elevator)elevatorStatus.Elevator{
 		}
 	}
 
+	e.Dir = driver.MDIR_STOP
+	e.CurrentFloor = driver.Get_floor_sensor_signal()
 	e.PreviousFloor = driver.Get_floor_sensor_signal()
 	e.State = elevatorStatus.IDLE
-	e.Dir = driver.MDIR_STOP
+	e.IP = network.GetIpAddress()
 	return e
 }
