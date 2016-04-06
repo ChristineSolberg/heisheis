@@ -46,10 +46,12 @@ var buttonChannels = [NUM_FLOORS][NUM_BUTTONS] int{
 
 func Init() error{
 	if driverInitialized{
+		fmt.Println("WARNING: Already initialized!")
 		return errors.New("Already initialized")
 	} else{
 		driverInitialized = true
 		if (IO_init() == 0){
+			fmt.Println("ERROR: IO not initialized!")
 			return errors.New("IO not initialized")
 		} else{
 			Init_button_lamps()

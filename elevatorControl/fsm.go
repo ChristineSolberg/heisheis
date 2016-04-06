@@ -11,54 +11,50 @@ import(
 )
 
 
-func UpdateFSM(e elevatorStatus.Elevator, inToFSM chan elevatorStatus.Elevator, outOfFSM chan elevatorStatus.Elevator, DelOrder chan [4]int){
+
+func UpdateFSM(e *elevatorStatus.Elevator, inToFSM chan elevatorStatus.Elevator, outOfFSM chan bool, DelOrder chan [4]int){
+	eventChan := make(chan elevatorStatus.Event,100)
+	//DoorTimeout := make(chan time.Time)
+	var DoorTimeout <-chan time.Time
+	go getNextEvent(e, DoorTimeout, eventChan)
 	for{	
-		fmt.Println("e in UpdateFSM: ", e)
-
-		var DoorTimeout <-chan time.Time
-		
-		newOrder := <- inToFSM
-		e.OrderMatrix = orderHandling.UpdateOrderMatrix(newOrder.OrderMatrix,e.OrderMatrix)
-		// //fmt.Println("newOrder: ", newOrder)
-		// fmt.Println("newOrderMatrix: ", e.OrderMatrix)
-		fmt.Println("Inne i updateFSM")
-		
-
 		select{
 		case newOrder := <-inToFSM:
 			fmt.Println("newOrder: ", newOrder)
+			//fmt.Println(e)
+			//fmt.Println(e.OrderMatrix)
 			e.OrderMatrix = orderHandling.UpdateOrderMatrix(newOrder.OrderMatrix,e.OrderMatrix)
 			fmt.Println("newOrderMatrix: ", e.OrderMatrix)
-		default:
-			fmt.Println("Ingen nye ordre")
+		case event := <- eventChan:
+			fmt.Println("Direction: ", e.Dir)
+			switch(e.State){
+			case elevatorStatus.IDLE:
+				fmt.Println("State: IDLE")
+				*e = updateFSM_IDLE(event, *e, DelOrder, DoorTimeout)
+				break
+			case elevatorStatus.GO_UP:
+				fmt.Println("State: GO UP")
+				*e = updateFSM_GO_UP(event, *e, DelOrder, DoorTimeout)
+				break
+			case elevatorStatus.GO_DOWN:
+				fmt.Println("State: GO DOWN")
+				*e = updateFSM_GO_DOWN(event, *e, DelOrder, DoorTimeout)
+				break
+			case elevatorStatus.DOOR_OPEN:
+				fmt.Println("State: DOOR OPEN")
+				*e = updateFSM_DOOR_OPEN(event, *e, DelOrder, DoorTimeout)
+				break
+			default:
+				fmt.Println("Error: No valid state in UpdateFSM")
+			}
+			outOfFSM <- true
+
+			
 		}
 		
 		time.Sleep(time.Millisecond * 100)
 		
-		event := getNextEvent(e, DoorTimeout)
 		
-		fmt.Println("Direction: ", e.Dir)
-		switch(e.State){
-		case elevatorStatus.IDLE:
-			fmt.Println("State: IDLE")
-			e = updateFSM_IDLE(event, e, DelOrder, DoorTimeout)
-			break
-		case elevatorStatus.GO_UP:
-			fmt.Println("State: GO UP")
-			e = updateFSM_GO_UP(event, e, DelOrder, DoorTimeout)
-			break
-		case elevatorStatus.GO_DOWN:
-			fmt.Println("State: GO DOWN")
-			e = updateFSM_GO_DOWN(event, e, DelOrder, DoorTimeout)
-			break
-		case elevatorStatus.DOOR_OPEN:
-			fmt.Println("State: DOOR OPEN")
-			e = updateFSM_DOOR_OPEN(event, e, DelOrder, DoorTimeout)
-			break
-		default:
-			fmt.Println("Error: No valid state in UpdateFSM")
-		}
-		outOfFSM <- e
 	}
 }
 // Nå vil vi legge ut en "ny" e på outOfFSM selv om Staten ikke nødvendigvis er oppdatert.
@@ -187,36 +183,49 @@ func updateFSM_DOOR_OPEN(event elevatorStatus.Event, e elevatorStatus.Elevator, 
 }
 
 
-func getNextEvent(e elevatorStatus.Elevator, DoorTimeout <-chan time.Time)elevatorStatus.Event{
-	e.CurrentFloor = driver.Get_floor_sensor_signal()
+func getNextEvent(e *elevatorStatus.Elevator, DoorTimeout <-chan time.Time, eventChan chan elevatorStatus.Event){
 	fmt.Println("CurrentFloor: ", e.CurrentFloor)
-	var event elevatorStatus.Event
+	
+	// får vi første no event nå? 
+	var nextEvent elevatorStatus.Event
+	var prevEvent elevatorStatus.Event
 
-	select{
-	case <-DoorTimeout:
-		event = elevatorStatus.TIMER_OUT
-		fmt.Println("Event: TIMER_OUT")
-		return event
-	default:
-		fmt.Println("ingenting på channel")
+	for{
+		e.CurrentFloor = driver.Get_floor_sensor_signal()
+		select{
+		case <-DoorTimeout:
+			nextEvent = elevatorStatus.TIMER_OUT
+			fmt.Println("Event: TIMER_OUT")
+			//Dette vil også legges på channelen, ja?
+		default:
+			//fmt.Println("NewOrderAtCurrentFloor: ", orderHandling.NewOrderAtCurrentFloor(e))
+			//fmt.Println("Queue: ", e.OrderMatrix)
+			if (e.CurrentFloor != -1) && (e.PreviousFloor != e.CurrentFloor){
+				nextEvent = elevatorStatus.FLOOR_REACHED
+				fmt.Println("Event: FLOOR_REACHED")
+			} else if ((e.State == elevatorStatus.IDLE)||(e.State == elevatorStatus.DOOR_OPEN)) && orderHandling.NewOrderAtCurrentFloor(*e) == 1{
+				nextEvent = elevatorStatus.NEW_ORDER_AT_CURRENT
+				fmt.Println("Event: NEW_ORDER_AT_CURRENT")
+			} else if (orderHandling.LengthOfQueue(*e) > 0 && e.State == elevatorStatus.IDLE){  //&& (e.State == elevatorStatus.IDLE) || event == elevatorStatus.TIMER_OUT){
+				fmt.Println("Length of queue: ", orderHandling.LengthOfQueue(*e))
+				nextEvent = elevatorStatus.NEXT_ORDER
+				fmt.Println("Event: NEXT_ORDER")
+			} else{
+				nextEvent = elevatorStatus.NO_EVENT
+				//fmt.Println("Event = NO_EVENT")
+			}
+			
+			if prevEvent != nextEvent{
+				fmt.Println("Event: ", nextEvent)
+				eventChan <-nextEvent
+				prevEvent = nextEvent
+			}
+		}
 	}
-	//fmt.Println("NewOrderAtCurrentFloor: ", orderHandling.NewOrderAtCurrentFloor(e))
-	if (e.CurrentFloor != -1) && (e.PreviousFloor != e.CurrentFloor){
-		event = elevatorStatus.FLOOR_REACHED
-		fmt.Println("Event: FLOOR_REACHED")
-	} else if ((e.State == elevatorStatus.IDLE)||(e.State == elevatorStatus.DOOR_OPEN)) && orderHandling.NewOrderAtCurrentFloor(e) == 1{
-		event = elevatorStatus.NEW_ORDER_AT_CURRENT
-		fmt.Println("Event: NEW_ORDER_AT_CURRENT")
-	} else if (orderHandling.LengthOfQueue(e) > 0 && e.State == elevatorStatus.IDLE){  //&& (e.State == elevatorStatus.IDLE) || event == elevatorStatus.TIMER_OUT){
-		fmt.Println("Length of queue: ", orderHandling.LengthOfQueue(e))
-		event = elevatorStatus.NEXT_ORDER
-		fmt.Println("Event: NEXT_ORDER")
-	} else{
-		event = elevatorStatus.NO_EVENT
-		fmt.Println("Event = NO_EVENT")
-	}
-	return event
 }
+
+
+
 
 func GetNextDirection(e elevatorStatus.Elevator)driver.MotorDirection{
 	e.CurrentFloor = driver.Get_floor_sensor_signal()
@@ -257,6 +266,7 @@ func GetNextDirection(e elevatorStatus.Elevator)driver.MotorDirection{
 
 
 func StartUp(e elevatorStatus.Elevator)elevatorStatus.Elevator{
+	fmt.Println("Floor: ", driver.Get_floor_sensor_signal())
 	for (driver.Get_floor_sensor_signal() == -1){
 		driver.Set_motor_speed(driver.MDIR_DOWN)
 	}
@@ -274,7 +284,7 @@ func StartUp(e elevatorStatus.Elevator)elevatorStatus.Elevator{
 		}
 	}
 
-	e.Dir = driver.MDIR_STOP
+	//e.Dir = driver.MDIR_STOP
 	e.CurrentFloor = driver.Get_floor_sensor_signal()
 	e.PreviousFloor = driver.Get_floor_sensor_signal()
 	e.State = elevatorStatus.IDLE

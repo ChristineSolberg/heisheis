@@ -34,8 +34,9 @@ func AddOrderToQueue(e elevatorStatus.Elevator, order [2]int) elevatorStatus.Ele
 }
 
 //for n antall heiser.  ordren skal sendes til master i stedet for å legges inn i matrisen for n heiser
-func ReadButtons(buttonChan chan [2]int, e elevatorStatus.Elevator){
+func ReadButtons(buttonChan chan [2]int){
 	var order [2]int
+	var prevOrder [2]int
 	for{
 		for floor := 0; floor < driver.NUM_FLOORS; floor++{
 			for button := driver.BUTTON_CALL_UP; button < driver.NUM_BUTTONS; button++{
@@ -46,7 +47,12 @@ func ReadButtons(buttonChan chan [2]int, e elevatorStatus.Elevator){
 					order[0] = floor
 					order[1] = int(button)
 
-					buttonChan <-order
+
+					if prevOrder != order{
+						fmt.Println("Button pushed")
+						buttonChan <-order
+						prevOrder = order
+					}
 				}
 			}
 		}
@@ -56,15 +62,14 @@ func ReadButtons(buttonChan chan [2]int, e elevatorStatus.Elevator){
 
 
 func UpdateOrderMatrix(update [4][3]int, old [4][3]int)[4][3]int{
-	var updated[driver.NUM_FLOORS][driver.NUM_BUTTONS] int
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
 		for button := driver.BUTTON_CALL_UP; button < driver.NUM_BUTTONS; button++{
-			if old[floor][button] == 0{
-			updated[floor][button] = update[floor][button] + old[floor][button]
+			if update[floor][button] == 1{
+				old[floor][button] = 1
 			}
 		}
 	}
-	return updated
+	return old
 }
 
 
@@ -152,7 +157,7 @@ func CheckDownOrdersBelow(e elevatorStatus.Elevator)int{
 }
 
 func LengthOfQueue(e elevatorStatus.Elevator)int{
-	fmt.Println(e.OrderMatrix)
+	//fmt.Println(e.OrderMatrix)
 	length := 0
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
 		for button := 0; button < driver.NUM_BUTTONS; button++{

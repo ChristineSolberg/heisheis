@@ -49,15 +49,14 @@ func RecvMsg(conn *net.UDPConn, msgChan chan UpdateMessage) {
 	for{
 		var msg UpdateMessage
 		size := network.UDPListen(conn,buffer)
-		fmt.Println("size i recvmsg:", size)
+		//fmt.Println("size i recvmsg:", size)
 		array := buffer[0:size]
 		err := json.Unmarshal(array, &msg)
 		if err == nil{
 			msgChan <- msg
 		}
-		fmt.Println("Mottatt melding: ", msg)
+		//fmt.Println("Mottatt melding: ", msg)
 	}
-	fmt.Println("Recv2")
 	defer conn.Close()
 
 	//return msg
@@ -68,41 +67,20 @@ func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage){
 	defer conn.Close()
 	for {
 		v := <-msgChan
-		fmt.Println("Melding via network: ",v)
+		//fmt.Println("Melding via network: ",v)
 		encoded,err := json.Marshal(v)
-		fmt.Println("error", err)
+		if err != nil{
+			fmt.Println("error", err)
+		}
 		buf := []byte(encoded)
 		network.UDPWrite(conn, buf)
 
-		fmt.Println("Send ferdig")
+		//fmt.Println("Send ferdig")
 	}
- 
-	// enc,_ := json.Marshal(msg)
-	// buffer := []byte(enc)
-	// network.UDPWrite(conn, buffer)
-
-	// ny kode med channel
-	
-
-	// for{
-	// 	enc, err := json.Marshal(<-msgChan)
-	// 	if err == nil{
-	// 		network.UDPWrite(conn, enc)
-	// 	}
-	//}
-
-	
 }
 
-func MessageManager(toElev chan UpdateMessage, fromElev chan UpdateMessage){
-	conn1 := network.ServerConnection()
-	conn2 := network.ClientConnection()
-	
-	go RecvMsg(conn1,toElev)
-	go SendMsg(conn2,fromElev)
 
 
-    // sjekk om mottatt melding er sent fra en av våre heiser, før det legges ut på channel til main
+
+    
      
-
-}

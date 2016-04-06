@@ -70,13 +70,15 @@ func selectMaster(elevs map[string]*elevatorStatus.Elevator){
 func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string){
 	delete(elevs,IP)
 	selectMaster(elevs)
+	//Husk å assigne ordre hos denne heisen til de resterende heisene
 }
 
 
-func EventHandler(recvChan chan message.UpdateMessage, sendChan chan message.UpdateMessage, inToFSM chan elevatorStatus.Elevator){ // +order message.UpdateMessage
+func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.UpdateMessage, inToFSM chan elevatorStatus.Elevator){ // +order message.UpdateMessage
 	var msg message.UpdateMessage
+	// sjekk om mottatt melding er sent fra en av våre heiser, før det legges ut på channel til main
 	
-	var MasterMatrix [4][3]int
+	var MasterMatrix [driver.NUM_FLOORS][driver.NUM_BUTTONS]int
 	fmt.Println("MasterMatrix: ",MasterMatrix)
 	elevs := make(map[string]*elevatorStatus.Elevator)
 	elevatorTimers := make(map[string]*time.Timer)
@@ -85,30 +87,35 @@ func EventHandler(recvChan chan message.UpdateMessage, sendChan chan message.Upd
 	
 	for{
 		msg = <-recvChan
-		fmt.Println("Recieved message: ", msg)
+		//fmt.Println("Recieved message: ", msg)
 		msgType := msg.MessageType
 
 	
 		switch(msgType){
 			case message.IAmAlive:
 				var shouldAppend bool = true
-				for ip,_ := range elevs{
+				for ip,_ := range elevatorTimers{
 					if ip == msg.ElevatorStatus.IP{
+						//fmt.Println("1. IAmAlive")
 						elevatorTimers[ip].Reset(time.Second*2)
 						shouldAppend = false
-						fmt.Println("inne i IAmAlive", shouldAppend)
+						//fmt.Println("inne i IAmAlive", shouldAppend)
 					}
 				}	
 				if shouldAppend == true{
 					fmt.Println("Oppdager heis for første gang: ")
+					var e elevatorStatus.Elevator// bør fungere, spørr mathias 
+
 					elevs[msg.ElevatorStatus.IP] = new(elevatorStatus.Elevator)
-					elevs[msg.ElevatorStatus.IP].Dir = msg.ElevatorStatus.Dir
-					elevs[msg.ElevatorStatus.IP].CurrentFloor = msg.ElevatorStatus.CurrentFloor
-					elevs[msg.ElevatorStatus.IP].PreviousFloor = msg.ElevatorStatus.PreviousFloor
-					elevs[msg.ElevatorStatus.IP].State = msg.ElevatorStatus.State
-					elevs[msg.ElevatorStatus.IP].IP = msg.ElevatorStatus.IP
+					e.Dir = msg.ElevatorStatus.Dir
+					e.CurrentFloor = msg.ElevatorStatus.CurrentFloor
+					e.PreviousFloor = msg.ElevatorStatus.PreviousFloor
+					e.State = msg.ElevatorStatus.State
+					e.IP = msg.ElevatorStatus.IP
 
-
+					elevs[msg.ElevatorStatus.IP] = &e
+					
+					
 
 					for _,elev := range elevs{
 						fmt.Println("Elevators in map: ", elev)
@@ -128,13 +135,13 @@ func EventHandler(recvChan chan message.UpdateMessage, sendChan chan message.Upd
 				fmt.Println("Master før if: ", MasterMatrix[floor][button])
 				if MasterMatrix[floor][button] == 0{
 					fmt.Println("floor: ", floor, "button: ", button)
-					MasterMatrix[floor][button] = 1
 					fmt.Println("Mastermatrix: ", MasterMatrix)
-					fmt.Println("master: ", elevs[msg.ElevatorStatus.IP].Master, " GetIpAddress: ",network.GetIpAddress() )
+					//fmt.Println("master: ", elevs[msg.ElevatorStatus.IP].Master, " GetIpAddress: ",network.GetIpAddress() )
 					if elevs[msg.ElevatorStatus.IP].Master == network.GetIpAddress(){ 
 						
 						// Kall kostfunksjon og legg bestillingen (+valgt heis) på en channel - mellomledd før nettverket tar bestillingen videre herfra?
 						if button < 2{
+							MasterMatrix[floor][button] = 1
 							AssignedElev := cost.AssignOrdersToElevator(msg, elevs)
 							fmt.Println("AssignedElev: ", AssignedElev)
 							sendChan <-message.UpdateMessage{MessageType: message.AssignedOrder, Order: msg.Order, RecieverIP: AssignedElev}
@@ -177,11 +184,15 @@ func EventHandler(recvChan chan message.UpdateMessage, sendChan chan message.Upd
 
 			case message.StateUpdate:
 				//*elevs[msg.ElevatorStatus.IP] = msg.ElevatorStatus
-				elevs[msg.ElevatorStatus.IP].Dir = msg.ElevatorStatus.Dir
-				elevs[msg.ElevatorStatus.IP].CurrentFloor = msg.ElevatorStatus.CurrentFloor
-				elevs[msg.ElevatorStatus.IP].PreviousFloor = msg.ElevatorStatus.PreviousFloor
-				elevs[msg.ElevatorStatus.IP].State = msg.ElevatorStatus.State
-				elevs[msg.ElevatorStatus.IP].IP = msg.ElevatorStatus.IP
+				var e elevatorStatus.Elevator// bør fungere, spørr matias 
+
+				e.Dir = msg.ElevatorStatus.Dir
+				e.CurrentFloor = msg.ElevatorStatus.CurrentFloor
+				e.PreviousFloor = msg.ElevatorStatus.PreviousFloor
+				e.State = msg.ElevatorStatus.State
+				e.IP = msg.ElevatorStatus.IP
+
+				elevs[msg.ElevatorStatus.IP] = &e
 
 		}
 	}

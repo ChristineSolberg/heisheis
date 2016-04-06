@@ -43,17 +43,17 @@ func ClientConnection() *net.UDPConn{
 
 
 func UDPListen(conn *net.UDPConn, buffer []byte) int{
-	fmt.Println("Waiting for msg")
+	//fmt.Println("Waiting for msg")
 	size,_,err := conn.ReadFromUDP(buffer)
 	if err != nil {
 		fmt.Println("Error: ", err)
 	}
-	fmt.Println("size: ", size)	
+	//fmt.Println("size: ", size)	
 	return size
 }
 
 func UDPWrite(conn *net.UDPConn, buffer []byte){
-	fmt.Println("Sending msg")
+	//fmt.Println("Sending msg")
 	conn.Write(buffer)
 }
 
