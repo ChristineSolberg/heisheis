@@ -12,69 +12,69 @@ import(
 
 
 
-func UpdateFSM(e *elevatorStatus.Elevator, inToFSM chan elevatorStatus.Elevator, outOfFSM chan bool, DelOrder chan [4]int){
-	eventChan := make(chan elevatorStatus.Event,100)
+func UpdateFSM(newOrderToFSM chan elevatorStatus.Elevator, newStateUpdate chan bool, DelOrder chan [4]int, elevChan chan elevatorStatus.Elevator){
+	doorTimer := time.NewTimer(time.Nanosecond)
+	DoorTimeout := doorTimer.C
+	fmt.Println("door timeout ",DoorTimeout)
 	//DoorTimeout := make(chan time.Time)
 	//var DoorTimeout <-chan time.Time
 
-	doorTimer := time.NewTimer(time.Millisecond)
-	DoorTimeout := doorTimer.C
-	fmt.Println("door timeout ",DoorTimeout)
-
-	go getNextEvent(e, DoorTimeout, eventChan)
-	for{	
+	eventChan := make(chan elevatorStatus.Event,100)
+	go getNextEvent(elevChan, DoorTimeout, eventChan)
+	for{
 		select{
-		case newOrder := <-inToFSM:
+		case newOrder := <-newOrderToFSM:
 			fmt.Println("newOrder: ", newOrder)
-			//fmt.Println(e)
-			//fmt.Println(e.OrderMatrix)
-			e.OrderMatrix = orderHandling.UpdateOrderMatrix(newOrder.OrderMatrix,e.OrderMatrix)
-			fmt.Println("newOrderMatrix: ", e.OrderMatrix)
+			orderHandling.UpdateOrderMatrix(newOrder.OrderMatrix,elevChan)
 		case event := <- eventChan:
-			fmt.Println("Direction: ", e.Dir)
-			switch(e.State){
+			//fmt.Println("Direction: ", e.Dir)
+			state := getElevatorState(elevChan)
+			switch(state){
 			case elevatorStatus.IDLE:
 				fmt.Println("State: IDLE")
-				*e = updateFSM_IDLE(event, e, DelOrder, doorTimer)
+				updateFSM_IDLE(event, elevChan, DelOrder, doorTimer)
 				break
 			case elevatorStatus.GO_UP:
 				fmt.Println("State: GO UP")
-				*e = updateFSM_GO_UP(event, e, DelOrder, doorTimer)
+				updateFSM_GO_UP(event, elevChan, DelOrder, doorTimer)
 				break
 			case elevatorStatus.GO_DOWN:
 				fmt.Println("State: GO DOWN")
-				*e = updateFSM_GO_DOWN(event, e, DelOrder, doorTimer)
+				updateFSM_GO_DOWN(event, elevChan, DelOrder, doorTimer)
 				break
 			case elevatorStatus.DOOR_OPEN:
-				//time.Sleep(time.Second*3)
 				fmt.Println("State: DOOR OPEN")
-				
-
-				*e = updateFSM_DOOR_OPEN(event, e, DelOrder, doorTimer)
+				updateFSM_DOOR_OPEN(event, elevChan, DelOrder, doorTimer)
 
 				break
 			default:
 				fmt.Println("Error: No valid state in UpdateFSM")
 			
 			}
-			outOfFSM <- true
-
-			
+			newStateUpdate <- true
+			//elevChan <- e		
 		}
 		
-		time.Sleep(time.Millisecond * 100)
-		
-		
+		time.Sleep(time.Millisecond * 100)		
 	}
 }
-// Nå vil vi legge ut en "ny" e på outOfFSM selv om Staten ikke nødvendigvis er oppdatert.
+
+func getElevatorState(elevChan chan elevatorStatus.Elevator)elevatorStatus.ElevState{
+	e := <- elevChan
+	state := e.State
+	elevChan <- e
+	return state
+}
+// Nå vil vi legge ut en "ny" e på newStateUpdate selv om Staten ikke nødvendigvis er oppdatert.
 // Blir dette for ofte? Burde vi heller sjekke om staten er forskjellig fra forrige gang, og kun oppdatere da?
 
 
-func updateFSM_IDLE(event elevatorStatus.Event, e *elevatorStatus.Elevator, DelOrder chan [4]int, DoorTimeout *time.Timer)elevatorStatus.Elevator{
+func updateFSM_IDLE(event elevatorStatus.Event, elevChan chan elevatorStatus.Elevator, DelOrder chan [4]int, DoorTimeout *time.Timer){
+	e := <- elevChan
+	fmt.Println("elevator object fsmUpdate idle", e)
 	switch(event){
 	case elevatorStatus.NEXT_ORDER:
-		e.Dir = GetNextDirection(*e)
+		GetNextDirection(&e)
 		driver.Set_motor_speed(e.Dir)
 		if (e.Dir == driver.MDIR_UP){
 			e.State = elevatorStatus.GO_UP
@@ -103,16 +103,17 @@ func updateFSM_IDLE(event elevatorStatus.Event, e *elevatorStatus.Elevator, DelO
 	default:
 		fmt.Println("Error: Error in updateFSM_IDLE!")
 	}
-	return *e
+	elevChan <- e
 }
 
 
 
-func updateFSM_GO_UP(event elevatorStatus.Event,e *elevatorStatus.Elevator,DelOrder chan [4]int, DoorTimeout *time.Timer)elevatorStatus.Elevator{
-	fmt.Println("inne i updateFSM_GO_UP")
+func updateFSM_GO_UP(event elevatorStatus.Event,elevChan chan elevatorStatus.Elevator,DelOrder chan [4]int, DoorTimeout *time.Timer){
+	//fmt.Println("inne i updateFSM_GO_UP")
+	e := <- elevChan
 	switch (event){
 	case elevatorStatus.FLOOR_REACHED:
-		if (orderHandling.ShouldStop(*e) == 1){
+		if (orderHandling.ShouldStop(e) == 1){
 			driver.Set_motor_speed(driver.MDIR_STOP)
 			//Start timer, og legg true på doorTimeout når det har gått 3 sek.
 			DoorTimeout.Reset(time.Second*3)
@@ -121,7 +122,7 @@ func updateFSM_GO_UP(event elevatorStatus.Event,e *elevatorStatus.Elevator,DelOr
 			orderHandling.DeleteCompletedOrders(e, DelOrder)
 			fmt.Println("etter delete i FLOOR_REACHED")
 			e.PreviousFloor = driver.Get_floor_sensor_signal()
-			e.Dir = GetNextDirection(*e)
+			GetNextDirection(&e)
 			e.State = elevatorStatus.DOOR_OPEN
 		} else{
 			e.State = elevatorStatus.GO_UP
@@ -133,22 +134,21 @@ func updateFSM_GO_UP(event elevatorStatus.Event,e *elevatorStatus.Elevator,DelOr
 	default:
 		fmt.Println("Error: Error in updateFSM_GO_UP!")
 	}
-	return *e
+	elevChan <- e
 }
 
-func updateFSM_GO_DOWN(event elevatorStatus.Event, e *elevatorStatus.Elevator, DelOrder chan [4]int, DoorTimeout *time.Timer)elevatorStatus.Elevator{
+func updateFSM_GO_DOWN(event elevatorStatus.Event, elevChan chan elevatorStatus.Elevator, DelOrder chan [4]int, DoorTimeout *time.Timer){
+	e := <- elevChan
 	switch (event){
 	case elevatorStatus.FLOOR_REACHED:
-		fmt.Println("stop: ", orderHandling.ShouldStop(*e))
-		if (orderHandling.ShouldStop(*e) == 1){
+		fmt.Println("stop: ", orderHandling.ShouldStop(e))
+		if (orderHandling.ShouldStop(e) == 1){
 			driver.Set_motor_speed(driver.MDIR_STOP)
 			e.State = elevatorStatus.DOOR_OPEN
-			//Start timer, og legg true på doorTimeout når det har gått 3 sek.
 			DoorTimeout.Reset(time.Second*3)
-			fmt.Println("door timeout ",DoorTimeout)
 			orderHandling.DeleteCompletedOrders(e, DelOrder)
 			e.PreviousFloor = driver.Get_floor_sensor_signal()
-			e.Dir = GetNextDirection(*e)
+			GetNextDirection(&e)
 		} else{
 			e.State = elevatorStatus.GO_DOWN
 		}
@@ -159,10 +159,11 @@ func updateFSM_GO_DOWN(event elevatorStatus.Event, e *elevatorStatus.Elevator, D
 	default:
 		fmt.Println("Error: Error in updateFSM_GO_DOWN!")
 	}
-	return *e
+	elevChan <- e
 }
 
-func updateFSM_DOOR_OPEN(event elevatorStatus.Event, e *elevatorStatus.Elevator, DelOrder chan [4]int, DoorTimeout *time.Timer)elevatorStatus.Elevator{
+func updateFSM_DOOR_OPEN(event elevatorStatus.Event, elevChan chan elevatorStatus.Elevator, DelOrder chan [4]int, DoorTimeout *time.Timer){
+	e := <-elevChan
 	switch(event){
 	case elevatorStatus.TIMER_OUT:
 		driver.Set_door_open_lamp(0)
@@ -175,31 +176,37 @@ func updateFSM_DOOR_OPEN(event elevatorStatus.Event, e *elevatorStatus.Elevator,
 		orderHandling.DeleteCompletedOrders(e, DelOrder)
 		break
 	case elevatorStatus.NO_EVENT:
-		fmt.Println("Length of queue", orderHandling.LengthOfQueue(*e))
+		fmt.Println("Length of queue", orderHandling.LengthOfQueue(e))
 		//Do nothing
 		break
 	default:
 		fmt.Println("Error: Error in updateFSM_DOOR_OPEN!")
 	}
-	return *e
+	elevChan <- e
 }
 
 
-func getNextEvent(e *elevatorStatus.Elevator, DoorTimeout <-chan time.Time, eventChan chan elevatorStatus.Event){
-	fmt.Println("CurrentFloor: ", e.CurrentFloor)
+func getNextEvent(elevChan chan elevatorStatus.Elevator, DoorTimeout <-chan time.Time, eventChan chan elevatorStatus.Event){
+	
 	
 	// får vi første no event nå? 
 	var nextEvent elevatorStatus.Event
 	var prevEvent elevatorStatus.Event
 
 	for{
-		eCopy := *e
+		e := <-elevChan
+		fmt.Println("checking next event, this is my elevator", e)
+		elevChan <- e
+
+		//eCopy := *e
 		//fmt.Println("door timeout ",DoorTimeout)
-		eCopy.CurrentFloor = driver.Get_floor_sensor_signal()
+		currentFloor := driver.Get_floor_sensor_signal()
+		fmt.Println("my floor ", currentFloor)
 		select{
 		case <-DoorTimeout:
 			nextEvent = elevatorStatus.TIMER_OUT
 			fmt.Println("Event: TIMER_OUT")
+			//elevChan <- e
 
 			if prevEvent != nextEvent{
 				fmt.Println("Event: ", nextEvent)
@@ -210,13 +217,13 @@ func getNextEvent(e *elevatorStatus.Elevator, DoorTimeout <-chan time.Time, even
 		default:
 			//fmt.Println("NewOrderAtCurrentFloor: ", orderHandling.NewOrderAtCurrentFloor(e))
 			//fmt.Println("Queue: ", e.OrderMatrix)
-			if (eCopy.CurrentFloor != -1) && (eCopy.PreviousFloor != eCopy.CurrentFloor){
+			if (currentFloor != -1) && (e.PreviousFloor != currentFloor){
 				nextEvent = elevatorStatus.FLOOR_REACHED
 				//fmt.Println("Event: FLOOR_REACHED")
-			} else if ((eCopy.State == elevatorStatus.IDLE)||(eCopy.State == elevatorStatus.DOOR_OPEN)) && orderHandling.NewOrderAtCurrentFloor(eCopy) == 1{
+			} else if ((e.State == elevatorStatus.IDLE)||(e.State == elevatorStatus.DOOR_OPEN)) && orderHandling.NewOrderAtCurrentFloor(e) == 1{
 				nextEvent = elevatorStatus.NEW_ORDER_AT_CURRENT
 				//fmt.Println("Event: NEW_ORDER_AT_CURRENT")
-			} else if (orderHandling.LengthOfQueue(eCopy) > 0 && eCopy.State == elevatorStatus.IDLE){  //&& (e.State == elevatorStatus.IDLE) || event == elevatorStatus.TIMER_OUT){
+			} else if (orderHandling.LengthOfQueue(e) > 0 && e.State == elevatorStatus.IDLE){  //&& (e.State == elevatorStatus.IDLE) || event == elevatorStatus.TIMER_OUT){
 				//fmt.Println("Length of queue: ", orderHandling.LengthOfQueue(*e))
 				nextEvent = elevatorStatus.NEXT_ORDER
 				//fmt.Println("Event: NEXT_ORDER")
@@ -229,15 +236,17 @@ func getNextEvent(e *elevatorStatus.Elevator, DoorTimeout <-chan time.Time, even
 				fmt.Println("Event: ", nextEvent)
 				eventChan <-nextEvent
 				prevEvent = nextEvent
+				
 			}
 		}
+		
 	}
 }
 
 
 
 
-func GetNextDirection(e elevatorStatus.Elevator)driver.MotorDirection{
+func GetNextDirection(e *elevatorStatus.Elevator){
 	e.CurrentFloor = driver.Get_floor_sensor_signal()
 
 	if e.CurrentFloor == 0 || e.CurrentFloor == 3{
@@ -246,10 +255,10 @@ func GetNextDirection(e elevatorStatus.Elevator)driver.MotorDirection{
 	fmt.Println("Retning etter første if")
 	if(e.Dir != driver.MDIR_DOWN && e.CurrentFloor != 3){
 		fmt.Println("Inne i getnextdirOPP")
-		if(orderHandling.CheckUpOrdersAbove(e) == 1){
+		if(orderHandling.CheckUpOrdersAbove(*e) == 1){
 			e.Dir = driver.MDIR_UP
 		} else {
-			if(orderHandling.CheckDownOrdersAbove(e) == 1){
+			if(orderHandling.CheckDownOrdersAbove(*e) == 1){
 			e.Dir = driver.MDIR_UP
 			} else if (e.Dir != driver.MDIR_STOP){
 			e.Dir = driver.MDIR_STOP
@@ -259,10 +268,10 @@ func GetNextDirection(e elevatorStatus.Elevator)driver.MotorDirection{
 
 	if(e.Dir != driver.MDIR_UP && e.CurrentFloor != 0){
 		fmt.Println("Inne i getnextdirNED")
-		if orderHandling.CheckDownOrdersBelow(e) == 1{
+		if orderHandling.CheckDownOrdersBelow(*e) == 1{
 			e.Dir = driver.MDIR_DOWN
 		} else{
-			if orderHandling.CheckUpOrdersBelow(e) == 1{
+			if orderHandling.CheckUpOrdersBelow(*e) == 1{
 				e.Dir = driver.MDIR_DOWN
 			} else if e.Dir != driver.MDIR_STOP{
 				e.Dir = driver.MDIR_STOP
@@ -270,13 +279,16 @@ func GetNextDirection(e elevatorStatus.Elevator)driver.MotorDirection{
 		}
 	}
 	fmt.Println("Retning etter andre if")
-	return e.Dir
 }
 
 
 
-func StartUp(e elevatorStatus.Elevator)elevatorStatus.Elevator{
-	fmt.Println("Floor: ", driver.Get_floor_sensor_signal())
+func StartUp(elevChan chan elevatorStatus.Elevator){
+	fmt.Println("Floor: ", driver.Get_floor_sensor_signal()) //Kan fjernes
+
+	var e elevatorStatus.Elevator
+
+	//If the elevator is in between two floors, it will go down to the nearest floor below
 	for (driver.Get_floor_sensor_signal() == -1){
 		driver.Set_motor_speed(driver.MDIR_DOWN)
 	}
@@ -285,6 +297,7 @@ func StartUp(e elevatorStatus.Elevator)elevatorStatus.Elevator{
 		break
 	}
 
+	//Making sure all lamps are turned off
 	for floor := 0; floor <driver.NUM_FLOORS; floor++{
 		for button := 0; button < driver.NUM_BUTTONS; button++{
 			if(floor == 0 && button == 1) || (floor == 3 && button == 0){
@@ -294,10 +307,18 @@ func StartUp(e elevatorStatus.Elevator)elevatorStatus.Elevator{
 		}
 	}
 
-	//e.Dir = driver.MDIR_STOP
+	e.Dir = driver.MDIR_STOP
 	e.CurrentFloor = driver.Get_floor_sensor_signal()
 	e.PreviousFloor = driver.Get_floor_sensor_signal()
 	e.State = elevatorStatus.IDLE
 	e.IP = network.GetIpAddress()
-	return e
+	fmt.Println("StartUp values: ", e)
+	
+	go changeElev(e,elevChan)
+	fmt.Println("Added to chan")
 }
+
+func changeElev(e elevatorStatus.Elevator, elevChan chan elevatorStatus.Elevator){
+	elevChan <- e 
+}
+//Hvorfor går ikke dette uten go routine??

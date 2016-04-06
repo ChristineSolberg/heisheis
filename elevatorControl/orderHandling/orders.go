@@ -62,15 +62,17 @@ func ReadButtons(buttonChan chan [2]int){
 }
 
 
-func UpdateOrderMatrix(update [4][3]int, old [4][3]int)[4][3]int{
+func UpdateOrderMatrix(update [4][3]int, elevChan chan elevatorStatus.Elevator){
+	e := <-elevChan
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
 		for button := driver.BUTTON_CALL_UP; button < driver.NUM_BUTTONS; button++{
 			if update[floor][button] == 1{
-				old[floor][button] = 1
+				e.OrderMatrix[floor][button] = 1
 			}
 		}
 	}
-	return old
+	fmt.Println("OrderMatrix: ", e.OrderMatrix)
+	elevChan <-e
 }
 
 
@@ -206,7 +208,7 @@ func NewOrderAtCurrentFloor(e elevatorStatus.Elevator)int{
 	return result
 }
 
-func DeleteCompletedOrders(e *elevatorStatus.Elevator, DelOrder chan [4]int){
+func DeleteCompletedOrders(e elevatorStatus.Elevator, DelOrder chan [4]int){
 	e.CurrentFloor =  driver.Get_floor_sensor_signal()
 	DeleteOrder := [4]int{0, 0, 0, 0}
 	DeleteOrder[3] = e.CurrentFloor
@@ -225,7 +227,7 @@ func DeleteCompletedOrders(e *elevatorStatus.Elevator, DelOrder chan [4]int){
 			fmt.Println("Sletter når retn er OPP")
 			e.OrderMatrix[e.CurrentFloor][0], e.OrderMatrix[e.CurrentFloor][2] = 0,0
 			DeleteOrder[0], DeleteOrder[2] = 1,1
-			if (CheckUpOrdersAbove(*e) != 1 && CheckDownOrdersAbove(*e) != 1){
+			if (CheckUpOrdersAbove(e) != 1 && CheckDownOrdersAbove(e) != 1){
 				e.OrderMatrix[e.CurrentFloor][1] = 0
 				DeleteOrder[1]= 1
 			}
@@ -234,7 +236,7 @@ func DeleteCompletedOrders(e *elevatorStatus.Elevator, DelOrder chan [4]int){
 			fmt.Println("Sletter når retn er NED")
 			e.OrderMatrix[e.CurrentFloor][1], e.OrderMatrix[e.CurrentFloor][2] = 0,0
 			DeleteOrder[1], DeleteOrder[2] = 1,1
-			if (CheckUpOrdersBelow(*e) != 1 && CheckDownOrdersBelow(*e) != 1){
+			if (CheckUpOrdersBelow(e) != 1 && CheckDownOrdersBelow(e) != 1){
 				e.OrderMatrix[e.CurrentFloor][0] = 0
 				DeleteOrder[0]= 1
 			}

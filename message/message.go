@@ -3,7 +3,7 @@ package message
 import(
 	"net"
 	"fmt"
-	//"time"
+	"time"
 	"../network"
 	"encoding/json"
 	"../elevatorControl/elevatorStatus"
@@ -44,8 +44,6 @@ func RecvMsg(conn *net.UDPConn, msgChan chan UpdateMessage) {
 	// må kjøre serverConnection() for denne funksjonen kjøres
 	buffer := make([]byte, 1024) 
 	
-	
-
 	for{
 		var msg UpdateMessage
 		size := network.UDPListen(conn,buffer)
@@ -55,32 +53,44 @@ func RecvMsg(conn *net.UDPConn, msgChan chan UpdateMessage) {
 		if err == nil{
 			msgChan <- msg
 		}
-		//fmt.Println("Mottatt melding: ", msg)
 	}
 	defer conn.Close()
-
-	//return msg
 }
 
-func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage){
+func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage, elevChan chan elevatorStatus.Elevator){
 	// må kjøre clientConnection() for denne funksjonen kjøres
 	defer conn.Close()
+	ticker := time.NewTicker(time.Millisecond*500)
+	e := MakeCopyOfElevator(elevChan)
 	for {
-		v := <-msgChan
-		//fmt.Println("Melding via network: ",v)
-		encoded,err := json.Marshal(v)
-		if err != nil{
-			fmt.Println("error", err)
+		select{
+		case message := <-msgChan:
+			encoded := encodeUDPmsg(message)
+			buffer := []byte(encoded)
+			network.UDPWrite(conn, buffer)
+		
+		case <-ticker.C:
+			alive := UpdateMessage{MessageType: IAmAlive, ElevatorStatus: e}
+			encoded := encodeUDPmsg(alive)
+			buffer := []byte(encoded)
+			network.UDPWrite(conn, buffer)
+	
 		}
-		buf := []byte(encoded)
-		network.UDPWrite(conn, buf)
-
-		//fmt.Println("Send ferdig")
 	}
 }
 
 
 
-
+func encodeUDPmsg(message UpdateMessage)[]byte{
+	encoded,err := json.Marshal(message)
+	if err != nil{
+		fmt.Println("error", err)
+	}
+	return encoded
+}
     
-     
+func MakeCopyOfElevator(elevChan chan elevatorStatus.Elevator)elevatorStatus.Elevator{
+	e := <- elevChan
+	elevChan <- e
+	return e
+} 
