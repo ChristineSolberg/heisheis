@@ -9,8 +9,8 @@ import(
 
 
 
-func ServerConnection()*net.UDPConn{ //er det bra funksjonsnavn??
-	port := ":20023"
+func ServerConnection()*net.UDPConn{ 
+	port := ":5555"
 	udpAddress, err := net.ResolveUDPAddr("udp", port)
 	if err != nil {
 		fmt.Println("Error: ", err)
@@ -25,7 +25,7 @@ func ServerConnection()*net.UDPConn{ //er det bra funksjonsnavn??
 }
 
 func ClientConnection() *net.UDPConn{
-	port := ":20023"
+	port := ":5555"
 	serverAddress, err := net.ResolveUDPAddr("udp", "129.241.187.255" + port)
 	if err != nil {
 		fmt.Println("Error: ", err)

@@ -3,15 +3,15 @@ package main
 import (
     "./elevatorControl/driver"
     "./elevatorControl"
-    //"./elevatorControl/orderHandling"
+    "./elevatorControl/orderHandling"
     "./elevatorControl/elevatorStatus"
-    //"./eventHandler"
+    "./eventHandler"
 
-    //"./network"
-    //"./message"
+    "./network"
+    "./message"
     "fmt"
     //"net"
-    //"time"
+    "time"
 )
 
 //Når skal vi "kill ourselves". Sverre mente vel dette var viktig?
@@ -35,49 +35,50 @@ func main() {
 	
 	// initialiser nettverksdel her
 
-	// recvNetwork := make(chan message.UpdateMessage, 100)
-	// sendNetwork := make(chan message.UpdateMessage, 100)
+	recvNetwork := make(chan message.UpdateMessage, 100)
+	sendNetwork := make(chan message.UpdateMessage, 100)
 
-	// conn1 := network.ServerConnection()
-	// conn2 := network.ClientConnection()
-	// go message.RecvMsg(conn1,recvNetwork)
-	// go message.SendMsg(conn2,sendNetwork)
+	conn1 := network.ServerConnection()
+	conn2 := network.ClientConnection()
+	go message.RecvMsg(conn1,recvNetwork)
+	go message.SendMsg(conn2,sendNetwork)
 
-	// go Alive(sendNetwork,&e) 
+	go Alive(sendNetwork,&e) 
 	
 
 
-	// inToFSM := make(chan elevatorStatus.Elevator,100)
-	// newStateUpdate := make(chan bool,100)
+	inToFSM := make(chan elevatorStatus.Elevator,100)
+	newStateUpdate := make(chan bool,100)
 
-	// go eventHandler.MessageHandler(recvNetwork,sendNetwork,inToFSM)
+	go eventHandler.MessageHandler(recvNetwork,sendNetwork,inToFSM)
 
 
-	// buttonChan := make(chan [2]int, 20)
-	// go orderHandling.ReadButtons(buttonChan)
+	buttonChan := make(chan [2]int, 20)
+	go orderHandling.ReadButtons(buttonChan)
 	
-	// // må lage en updatemessage med knappetrykket som sendes over nettverket til master
+	// må lage en updatemessage med knappetrykket som sendes over nettverket til master
 
-	// //FSM
-	// deleteChan := make(chan [4]int, 10)
-	// go elevatorControl.UpdateFSM(&e,inToFSM,newStateUpdate, deleteChan)
+	//FSM
+	deleteChan := make(chan [4]int, 10)
+	go elevatorControl.UpdateFSM(&e,inToFSM,newStateUpdate, deleteChan)
 
 	
 
 
-	// for{
-	// 	select{
-	// 		case <-newStateUpdate:
-	// 			sendNetwork <-message.UpdateMessage{MessageType: message.StateUpdate, ElevatorStatus: e}
-	// 		case order:= <-buttonChan:
-	// 			//er det mulig å registrere færre knappetrykk
-	// 			sendNetwork <-message.UpdateMessage{MessageType: message.PlacedOrder, Order: order,
-	// 			ElevatorStatus: elevatorStatus.Elevator{IP: network.GetIpAddress()}}
-	// 		case <-deleteChan:
-	// 			sendNetwork <-message.UpdateMessage{MessageType: message.CompletedOrder, DelOrder: <-deleteChan, ElevatorStatus: e}
+	for{
+		select{
+			case <-newStateUpdate: 
+				sendNetwork <-message.UpdateMessage{MessageType: message.StateUpdate, ElevatorStatus: e}
+			case order:= <-buttonChan:
+				fmt.Println("sent new order on network")
+				sendNetwork <-message.UpdateMessage{MessageType: message.PlacedOrder, Order: order,
+				ElevatorStatus: elevatorStatus.Elevator{IP: network.GetIpAddress()}}
+				
+			case deleted := <-deleteChan:
+				sendNetwork <-message.UpdateMessage{MessageType: message.CompletedOrder, DelOrder: deleted, ElevatorStatus: e}
 
-	// 	}
-	// }
+		}
+	}
 
 
 
@@ -132,12 +133,12 @@ func main() {
  }
 
 
-// func Alive(sendNetwork chan message.UpdateMessage, e *elevatorStatus.Elevator){
-// 	ticker := time.NewTicker(time.Millisecond*500)
-// 	for{
-// 		select{
-// 			case <-ticker.C:
-// 				sendNetwork <-message.UpdateMessage{MessageType: message.IAmAlive, ElevatorStatus: *e}
-// 		}
-// 	}
-// }
+func Alive(sendNetwork chan message.UpdateMessage, e *elevatorStatus.Elevator){
+	ticker := time.NewTicker(time.Millisecond*500)
+	for{
+		select{
+			case <-ticker.C:
+				sendNetwork <-message.UpdateMessage{MessageType: message.IAmAlive, ElevatorStatus: *e}
+		}
+	}
+}

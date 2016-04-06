@@ -104,16 +104,22 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 				}	
 				if shouldAppend == true{
 					fmt.Println("Oppdager heis for første gang: ")
-					var e elevatorStatus.Elevator// bør fungere, spørr mathias 
+					//var e elevatorStatus.Elevator// bør fungere, spørr mathias 
 
 					elevs[msg.ElevatorStatus.IP] = new(elevatorStatus.Elevator)
-					e.Dir = msg.ElevatorStatus.Dir
-					e.CurrentFloor = msg.ElevatorStatus.CurrentFloor
-					e.PreviousFloor = msg.ElevatorStatus.PreviousFloor
-					e.State = msg.ElevatorStatus.State
-					e.IP = msg.ElevatorStatus.IP
+					elevs[msg.ElevatorStatus.IP].Dir = msg.ElevatorStatus.Dir
+					elevs[msg.ElevatorStatus.IP].CurrentFloor = msg.ElevatorStatus.CurrentFloor
+					elevs[msg.ElevatorStatus.IP].PreviousFloor = msg.ElevatorStatus.PreviousFloor
+					elevs[msg.ElevatorStatus.IP].State = msg.ElevatorStatus.State
+					elevs[msg.ElevatorStatus.IP].IP = msg.ElevatorStatus.IP
+					// e.Dir = msg.ElevatorStatus.Dir
+					// e.CurrentFloor = msg.ElevatorStatus.CurrentFloor
+					// e.PreviousFloor = msg.ElevatorStatus.PreviousFloor
+					// e.State = msg.ElevatorStatus.State
+					// e.IP = msg.ElevatorStatus.IP
 
-					elevs[msg.ElevatorStatus.IP] = &e
+					// elevs[msg.ElevatorStatus.IP] = &e
+
 					
 					
 
@@ -129,14 +135,17 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 				}			
 
 			case message.PlacedOrder:
+				for _,elev := range elevs{
+						fmt.Println("Elevators in map: ", elev)
+				} 
 				fmt.Println("fått placedorder")
 				floor := msg.Order[0]
 				button := msg.Order[1]
-				fmt.Println("Master før if: ", MasterMatrix[floor][button])
+				//fmt.Println("Master før if: ", MasterMatrix[floor][button])
 				if MasterMatrix[floor][button] == 0{
 					fmt.Println("floor: ", floor, "button: ", button)
-					fmt.Println("Mastermatrix: ", MasterMatrix)
-					//fmt.Println("master: ", elevs[msg.ElevatorStatus.IP].Master, " GetIpAddress: ",network.GetIpAddress() )
+					//fmt.Println("Mastermatrix: ", MasterMatrix)
+					fmt.Println("master: ", elevs[msg.ElevatorStatus.IP].Master, " GetIpAddress: ",network.GetIpAddress() )
 					if elevs[msg.ElevatorStatus.IP].Master == network.GetIpAddress(){ 
 						
 						// Kall kostfunksjon og legg bestillingen (+valgt heis) på en channel - mellomledd før nettverket tar bestillingen videre herfra?
@@ -183,16 +192,23 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 				}
 
 			case message.StateUpdate:
-				//*elevs[msg.ElevatorStatus.IP] = msg.ElevatorStatus
-				var e elevatorStatus.Elevator// bør fungere, spørr matias 
+				if elevs[msg.ElevatorStatus.IP] != nil{
+					elevs[msg.ElevatorStatus.IP].Dir = msg.ElevatorStatus.Dir
+					elevs[msg.ElevatorStatus.IP].CurrentFloor = msg.ElevatorStatus.CurrentFloor
+					elevs[msg.ElevatorStatus.IP].PreviousFloor = msg.ElevatorStatus.PreviousFloor
+					elevs[msg.ElevatorStatus.IP].State = msg.ElevatorStatus.State
+					elevs[msg.ElevatorStatus.IP].IP = msg.ElevatorStatus.IP
+				}
 
-				e.Dir = msg.ElevatorStatus.Dir
-				e.CurrentFloor = msg.ElevatorStatus.CurrentFloor
-				e.PreviousFloor = msg.ElevatorStatus.PreviousFloor
-				e.State = msg.ElevatorStatus.State
-				e.IP = msg.ElevatorStatus.IP
+				// var e elevatorStatus.Elevator// bør fungere, spørr matias 
 
-				elevs[msg.ElevatorStatus.IP] = &e
+				// e.Dir = msg.ElevatorStatus.Dir
+				// e.CurrentFloor = msg.ElevatorStatus.CurrentFloor
+				// e.PreviousFloor = msg.ElevatorStatus.PreviousFloor
+				// e.State = msg.ElevatorStatus.State
+				// e.IP = msg.ElevatorStatus.IP
+
+				// elevs[msg.ElevatorStatus.IP] = &e
 
 		}
 	}

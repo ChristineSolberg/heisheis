@@ -52,6 +52,7 @@ func ReadButtons(buttonChan chan [2]int){
 						fmt.Println("Button pushed")
 						buttonChan <-order
 						prevOrder = order
+						
 					}
 				}
 			}
