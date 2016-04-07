@@ -197,12 +197,12 @@ func getNextEvent(elevChan chan elevatorStatus.Elevator, DoorTimeout <-chan time
 		e := <-elevChan
 		
 		go changeElev(e,elevChan)
-		fmt.Println("checking next event, this is my elevator etter", e)
+		//fmt.Println("checking next event, this is my elevator etter", e)
 
 		//eCopy := *e
 		//fmt.Println("door timeout ",DoorTimeout)
 		currentFloor := driver.Get_floor_sensor_signal()
-		fmt.Println("my floor ", currentFloor)
+		//fmt.Println("my floor ", currentFloor)
 		select{
 		case <-DoorTimeout:
 			nextEvent = elevatorStatus.TIMER_OUT
@@ -217,8 +217,8 @@ func getNextEvent(elevChan chan elevatorStatus.Elevator, DoorTimeout <-chan time
 				//Dette vil også legges på channelen, ja?
 		default:
 			//fmt.Println("NewOrderAtCurrentFloor: ", orderHandling.NewOrderAtCurrentFloor(e))
-			fmt.Println("This is my elevator before LengthOfQueue", e)
-			fmt.Println("Length of Queue: ", orderHandling.LengthOfQueue(e))
+			//fmt.Println("This is my elevator before LengthOfQueue", e)
+			//fmt.Println("Length of Queue: ", orderHandling.LengthOfQueue(e))
 			if (currentFloor != -1) && (e.PreviousFloor != currentFloor){
 				nextEvent = elevatorStatus.FLOOR_REACHED
 				//fmt.Println("Event: FLOOR_REACHED")

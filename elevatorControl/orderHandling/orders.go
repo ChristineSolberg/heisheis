@@ -160,7 +160,7 @@ func CheckDownOrdersBelow(e elevatorStatus.Elevator)int{
 }
 
 func LengthOfQueue(e elevatorStatus.Elevator)int{
-	fmt.Println(e.OrderMatrix)
+	//fmt.Println(e.OrderMatrix)
 	length := 0
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
 		for button := 0; button < driver.NUM_BUTTONS; button++{

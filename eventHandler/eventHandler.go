@@ -114,6 +114,9 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 						// Kall kostfunksjon og legg bestillingen (+valgt heis) på en channel - mellomledd før nettverket tar bestillingen videre herfra?
 						if button < 2{
 							MasterMatrix[floor][button] = 1
+							for _,elev := range elevs{
+								fmt.Println("Elevators in map før kostfunksjon: ", elev)
+							}
 							AssignedElev := cost.AssignOrdersToElevator(msg, elevs)
 							//fmt.Println("AssignedElev: ", AssignedElev)
 							sendChan <-message.UpdateMessage{MessageType: message.AssignedOrder, Order: msg.Order, RecieverIP: AssignedElev}
