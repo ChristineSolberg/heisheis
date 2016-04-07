@@ -167,6 +167,7 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 					elevs[msg.ElevatorStatus.IP].PreviousFloor = msg.ElevatorStatus.PreviousFloor
 					elevs[msg.ElevatorStatus.IP].State = msg.ElevatorStatus.State
 					elevs[msg.ElevatorStatus.IP].IP = msg.ElevatorStatus.IP
+					elevs[msg.ElevatorStatus.IP].OrderMatrix = msg.ElevatorStatus.OrderMatrix
 				}
 
 				// var e elevatorStatus.Elevator// bør fungere, spørr matias 
