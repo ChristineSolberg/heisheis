@@ -92,5 +92,6 @@ func encodeUDPmsg(message UpdateMessage)[]byte{
 func MakeCopyOfElevator(elevChan chan elevatorStatus.Elevator)elevatorStatus.Elevator{
 	e := <- elevChan
 	elevChan <- e
+	fmt.Println("Made copy of elevator: ", e)
 	return e
 } 

@@ -160,7 +160,7 @@ func CheckDownOrdersBelow(e elevatorStatus.Elevator)int{
 }
 
 func LengthOfQueue(e elevatorStatus.Elevator)int{
-	//fmt.Println(e.OrderMatrix)
+	fmt.Println(e.OrderMatrix)
 	length := 0
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
 		for button := 0; button < driver.NUM_BUTTONS; button++{
@@ -208,7 +208,7 @@ func NewOrderAtCurrentFloor(e elevatorStatus.Elevator)int{
 	return result
 }
 
-func DeleteCompletedOrders(e elevatorStatus.Elevator, DelOrder chan [4]int){
+func DeleteCompletedOrders(e *elevatorStatus.Elevator, DelOrder chan [4]int){
 	e.CurrentFloor =  driver.Get_floor_sensor_signal()
 	DeleteOrder := [4]int{0, 0, 0, 0}
 	DeleteOrder[3] = e.CurrentFloor
@@ -227,7 +227,7 @@ func DeleteCompletedOrders(e elevatorStatus.Elevator, DelOrder chan [4]int){
 			fmt.Println("Sletter når retn er OPP")
 			e.OrderMatrix[e.CurrentFloor][0], e.OrderMatrix[e.CurrentFloor][2] = 0,0
 			DeleteOrder[0], DeleteOrder[2] = 1,1
-			if (CheckUpOrdersAbove(e) != 1 && CheckDownOrdersAbove(e) != 1){
+			if (CheckUpOrdersAbove(*e) != 1 && CheckDownOrdersAbove(*e) != 1){
 				e.OrderMatrix[e.CurrentFloor][1] = 0
 				DeleteOrder[1]= 1
 			}
@@ -236,7 +236,7 @@ func DeleteCompletedOrders(e elevatorStatus.Elevator, DelOrder chan [4]int){
 			fmt.Println("Sletter når retn er NED")
 			e.OrderMatrix[e.CurrentFloor][1], e.OrderMatrix[e.CurrentFloor][2] = 0,0
 			DeleteOrder[1], DeleteOrder[2] = 1,1
-			if (CheckUpOrdersBelow(e) != 1 && CheckDownOrdersBelow(e) != 1){
+			if (CheckUpOrdersBelow(*e) != 1 && CheckDownOrdersBelow(*e) != 1){
 				e.OrderMatrix[e.CurrentFloor][0] = 0
 				DeleteOrder[0]= 1
 			}

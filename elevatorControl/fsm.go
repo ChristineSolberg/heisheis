@@ -90,7 +90,7 @@ func updateFSM_IDLE(event elevatorStatus.Event, elevChan chan elevatorStatus.Ele
 		fmt.Println("UpdateFSM_IDLE: new order at current")
 		DoorTimeout.Reset(time.Second*3)
 		//DoorTimeout = time.Tick(time.Second * 3)
-		orderHandling.DeleteCompletedOrders(e, DelOrder)
+		orderHandling.DeleteCompletedOrders(&e, DelOrder)
 		e.State = elevatorStatus.DOOR_OPEN
 		break
 	case elevatorStatus.TIMER_OUT:
@@ -119,7 +119,7 @@ func updateFSM_GO_UP(event elevatorStatus.Event,elevChan chan elevatorStatus.Ele
 			DoorTimeout.Reset(time.Second*3)
 			//DoorTimeout = time.Tick(time.Second * 3)
 			fmt.Println("før delete i FLOOR_REACHED")
-			orderHandling.DeleteCompletedOrders(e, DelOrder)
+			orderHandling.DeleteCompletedOrders(&e, DelOrder)
 			fmt.Println("etter delete i FLOOR_REACHED")
 			e.PreviousFloor = driver.Get_floor_sensor_signal()
 			GetNextDirection(&e)
@@ -146,7 +146,7 @@ func updateFSM_GO_DOWN(event elevatorStatus.Event, elevChan chan elevatorStatus.
 			driver.Set_motor_speed(driver.MDIR_STOP)
 			e.State = elevatorStatus.DOOR_OPEN
 			DoorTimeout.Reset(time.Second*3)
-			orderHandling.DeleteCompletedOrders(e, DelOrder)
+			orderHandling.DeleteCompletedOrders(&e, DelOrder)
 			e.PreviousFloor = driver.Get_floor_sensor_signal()
 			GetNextDirection(&e)
 		} else{
@@ -173,7 +173,7 @@ func updateFSM_DOOR_OPEN(event elevatorStatus.Event, elevChan chan elevatorStatu
 		DoorTimeout.Reset(time.Second*3)
 		//DoorTimeout = time.Tick(time.Second * 3)
 		e.State = elevatorStatus.DOOR_OPEN
-		orderHandling.DeleteCompletedOrders(e, DelOrder)
+		orderHandling.DeleteCompletedOrders(&e, DelOrder)
 		break
 	case elevatorStatus.NO_EVENT:
 		fmt.Println("Length of queue", orderHandling.LengthOfQueue(e))
@@ -195,8 +195,9 @@ func getNextEvent(elevChan chan elevatorStatus.Elevator, DoorTimeout <-chan time
 
 	for{
 		e := <-elevChan
-		fmt.Println("checking next event, this is my elevator", e)
-		elevChan <- e
+		
+		go changeElev(e,elevChan)
+		fmt.Println("checking next event, this is my elevator etter", e)
 
 		//eCopy := *e
 		//fmt.Println("door timeout ",DoorTimeout)
@@ -216,7 +217,8 @@ func getNextEvent(elevChan chan elevatorStatus.Elevator, DoorTimeout <-chan time
 				//Dette vil også legges på channelen, ja?
 		default:
 			//fmt.Println("NewOrderAtCurrentFloor: ", orderHandling.NewOrderAtCurrentFloor(e))
-			//fmt.Println("Queue: ", e.OrderMatrix)
+			fmt.Println("This is my elevator before LengthOfQueue", e)
+			fmt.Println("Length of Queue: ", orderHandling.LengthOfQueue(e))
 			if (currentFloor != -1) && (e.PreviousFloor != currentFloor){
 				nextEvent = elevatorStatus.FLOOR_REACHED
 				//fmt.Println("Event: FLOOR_REACHED")

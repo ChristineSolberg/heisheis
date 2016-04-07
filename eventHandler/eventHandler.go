@@ -14,9 +14,11 @@ import(
 
 func selectMaster(elevs map[string]*elevatorStatus.Elevator){
 	//fmt.Println("select between: ", elevs)
-	var minimumIP string = "129.241.187.256"
+	var minimumIP string = "129.241.187.999"
 	for ip,_ := range elevs{
+		fmt.Println("IP: ", ip)
 		if ip < minimumIP {
+			//fmt.Println("Ny master: ", ip)
 			minimumIP = ip
 		}
 	}
@@ -25,7 +27,7 @@ func selectMaster(elevs map[string]*elevatorStatus.Elevator){
 		elev.Master = minimumIP
 		//fmt.Println("Registrert master: ", elev.Master)
 	} 
-	//fmt.Println("New master: ", minimumIP)
+	fmt.Println("New master: ", minimumIP)
 }
 
 func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string){
@@ -84,9 +86,9 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 					
 					
 
-					//for _,elev := range elevs{
-					//	fmt.Println("Elevators in map: ", elev)
-					//} 
+					for _,elev := range elevs{
+						fmt.Println("Elevators in map: ", elev)
+					} 
 			
 					elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() {deleteElevator(elevs,msg.ElevatorStatus.IP)})
 					selectMaster(elevs)
@@ -99,14 +101,14 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 				//for _,elev := range elevs{
 				//		fmt.Println("Elevators in map: ", elev)
 				//} 
-				//fmt.Println("fått placedorder")
+				fmt.Println("fått placedorder")
 				floor := msg.Order[0]
 				button := msg.Order[1]
 				//fmt.Println("Master før if: ", MasterMatrix[floor][button])
 				if MasterMatrix[floor][button] == 0{
 					//fmt.Println("floor: ", floor, "button: ", button)
 					//fmt.Println("Mastermatrix: ", MasterMatrix)
-					//fmt.Println("master: ", elevs[msg.ElevatorStatus.IP].Master, " GetIpAddress: ",network.GetIpAddress() )
+					fmt.Println("master: ", elevs[msg.ElevatorStatus.IP].Master, " GetIpAddress: ",network.GetIpAddress() )
 					if elevs[msg.ElevatorStatus.IP].Master == network.GetIpAddress(){ 
 						
 						// Kall kostfunksjon og legg bestillingen (+valgt heis) på en channel - mellomledd før nettverket tar bestillingen videre herfra?
@@ -151,6 +153,11 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 				}
 
 			case message.StateUpdate:
+				//fmt.Println("Mottar StateUpdate: ", msg.ElevatorStatus.IP)
+
+				for _,elev := range elevs{
+					fmt.Println("Elevators in map in StateUpdate: ", elev)
+				}
 				if elevs[msg.ElevatorStatus.IP] != nil{
 					elevs[msg.ElevatorStatus.IP].Dir = msg.ElevatorStatus.Dir
 					elevs[msg.ElevatorStatus.IP].CurrentFloor = msg.ElevatorStatus.CurrentFloor

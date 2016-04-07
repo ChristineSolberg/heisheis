@@ -18,7 +18,7 @@ import (
 
 func main() {
 	//Initiating elevator
-	elevChan := make(chan elevatorStatus.Elevator,100)
+	elevChan := make(chan elevatorStatus.Elevator)
 	driver.Init()
 	elevatorControl.StartUp(elevChan)
 	//fmt.Println("StartUp values: ", e)
@@ -50,8 +50,10 @@ func main() {
 
 	for{
 		select{
-			case <-newStateUpdate: 
+			case <-newStateUpdate:
+				fmt.Println("Sender ny state update") 
 				elev := message.MakeCopyOfElevator(elevChan)
+				fmt.Println("Elev in new state update: ", elev/*.IP*/)
 				sendNetwork <-message.UpdateMessage{MessageType: message.StateUpdate, ElevatorStatus: elev}
 			case order:= <-buttonChan:
 				fmt.Println("sent new order on network")
