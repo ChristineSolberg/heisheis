@@ -109,7 +109,7 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 					//fmt.Println("floor: ", floor, "button: ", button)
 					//fmt.Println("Mastermatrix: ", MasterMatrix)
 					fmt.Println("master: ", elevs[msg.ElevatorStatus.IP].Master, " GetIpAddress: ",network.GetIpAddress() )
-					if elevs[msg.ElevatorStatus.IP].Master == network.GetIpAddress(){ 
+					if msg.RecieverIP == network.GetIpAddress(){ 
 						
 						// Kall kostfunksjon og legg bestillingen (+valgt heis) på en channel - mellomledd før nettverket tar bestillingen videre herfra?
 						if button < 2{

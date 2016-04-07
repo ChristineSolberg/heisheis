@@ -57,8 +57,9 @@ func main() {
 				sendNetwork <-message.UpdateMessage{MessageType: message.StateUpdate, ElevatorStatus: elev}
 			case order:= <-buttonChan:
 				fmt.Println("sent new order on network")
-				sendNetwork <-message.UpdateMessage{MessageType: message.PlacedOrder, Order: order,
-				ElevatorStatus: elevatorStatus.Elevator{IP: network.GetIpAddress()}}
+				elev := message.MakeCopyOfElevator(elevChan)
+				sendNetwork <-message.UpdateMessage{MessageType: message.PlacedOrder, RecieverIP: elev.Master, Order: order,
+				ElevatorStatus: elev}
 				
 			case deleted := <-deleteChan:
 				elev := message.MakeCopyOfElevator(elevChan)
