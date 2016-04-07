@@ -16,6 +16,7 @@ const(
 	AssignedOrder = 3
 	CompletedOrder = 4
 	StateUpdate = 5
+	LightUpdate = 6
 )
 
 const(

@@ -236,6 +236,9 @@ func getNextEvent(elevChan chan elevatorStatus.Elevator, DoorTimeout <-chan time
 			
 			if prevEvent != nextEvent{
 				fmt.Println("Event: ", nextEvent)
+				if nextEvent == elevatorStatus.FLOOR_REACHED{
+					driver.Set_floor_indicator(driver.Get_floor_sensor_signal())
+				}
 				eventChan <-nextEvent
 				prevEvent = nextEvent
 				
@@ -295,6 +298,7 @@ func StartUp(elevChan chan elevatorStatus.Elevator){
 		driver.Set_motor_speed(driver.MDIR_DOWN)
 	}
 	for (driver.Get_floor_sensor_signal() != -1){
+		driver.Set_floor_indicator(driver.Get_floor_sensor_signal())
 		driver.Set_motor_speed(driver.MDIR_STOP)
 		break
 	}
@@ -314,8 +318,9 @@ func StartUp(elevChan chan elevatorStatus.Elevator){
 	e.PreviousFloor = driver.Get_floor_sensor_signal()
 	e.State = elevatorStatus.IDLE
 	e.IP = network.GetIpAddress()
+	orderHandling.WriteInternals(e.OrderMatrix)
+	e.OrderMatrix = orderHandling.ReadInternals()
 	fmt.Println("StartUp values: ", e)
-	
 	go changeElev(e,elevChan)
 	fmt.Println("Added to chan")
 }

@@ -40,7 +40,7 @@ func main() {
 
 
 	buttonChan := make(chan [2]int, 20)
-	go orderHandling.ReadButtons(buttonChan)
+	go orderHandling.ReadButtons(buttonChan, elevChan)
 	
 	// må lage en updatemessage med knappetrykket som sendes over nettverket til master
 

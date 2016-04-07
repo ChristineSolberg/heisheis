@@ -30,10 +30,21 @@ func selectMaster(elevs map[string]*elevatorStatus.Elevator){
 	fmt.Println("New master: ", minimumIP)
 }
 
-func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string){
+func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string, sendChan chan message.UpdateMessage){
+	elev := elevs[IP]
 	delete(elevs,IP)
 	selectMaster(elevs)
-	//Husk å fordele ordre hos denne heisen til de resterende heisene
+	//If the deleted elevator had any external orders they need to be reassigned
+	for floor := 0; floor < driver.NUM_FLOORS; floor++{
+		for button := 0; button < driver.NUM_BUTTONS-1; button++{
+			if elev.OrderMatrix[floor][button] == 1{
+				var order [2]int
+				order[0] = floor
+				order[1] = button
+				sendChan <-message.UpdateMessage{MessageType: message.PlacedOrder, Order: order, RecieverIP: elevs[IP].Master}
+			}
+		}
+	}
 }
 
 
@@ -90,7 +101,7 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 						fmt.Println("Elevators in map: ", elev)
 					} 
 			
-					elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() {deleteElevator(elevs,msg.ElevatorStatus.IP)})
+					elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() {deleteElevator(elevs,msg.ElevatorStatus.IP, sendChan)})
 					selectMaster(elevs)
 					//for _,elev := range elevs{
 					//	fmt.Println("Elevators in map after master: ", elev)
@@ -126,7 +137,7 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 								
 								//ElevatorStatus: elevatorStatus.Elevator{RecieverIP: AssignedElev}}
 						} else if button == 2{
-							sendChan <-message.UpdateMessage{MessageType: message.AssignedOrder, Order: msg.Order, RecieverIP: msg.ElevatorStatus.IP}
+							sendChan <-message.UpdateMessage{MessageType: message.AssignedOrder, RecieverIP: msg.ElevatorStatus.IP, Order: msg.Order}
 								
 								//ElevatorStatus: elevatorStatus.Elevator{RecieverIP: msg.ElevatorStatus.SenderIP}}
 						}
@@ -137,21 +148,37 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 			case message.AssignedOrder:
 				// Ta imot og legg til bestillinger for master (må ha en lik case i func Slave)
 				//fmt.Println("RecieverIP - Assigned: ", msg.RecieverIP)
+				
+				button := msg.Order[1]
+				if button < 2{
+					sendChan <-message.UpdateMessage{MessageType: message.LightUpdate, Order: msg.Order}
+				}
 				if msg.RecieverIP == network.GetIpAddress(){
 					*elevs[msg.RecieverIP] = orderHandling.AddOrderToQueue(*elevs[msg.RecieverIP], msg.Order)
 					for _,elev := range elevs{
 						fmt.Println("Elevators in map i AssignedOrder: ", elev)
 					}
 					newOrderToFSM <- *elevs[msg.RecieverIP]
+					
+
 				}
 			case message.CompletedOrder:
 				// Slett ordre i MasterMatrix
-				del := msg.DelOrder
+				completed := msg.DelOrder
 				floor := msg.DelOrder[3]
+				var noOrder [2]int 
+				noOrder[0] = 0
+				noOrder[1] = 1
+				
 
 				for button := 0; button < driver.NUM_BUTTONS; button++{
-					if del[button] == 1{
+					if completed[button] == 1{
 						MasterMatrix[floor][button] = 0
+						if button < 2{
+							sendChan <-message.UpdateMessage{MessageType: message.LightUpdate, DelOrder: completed, Order: noOrder}
+						} else {
+							sendChan <-message.UpdateMessage{MessageType: message.LightUpdate, RecieverIP: msg.ElevatorStatus.IP, DelOrder: completed, Order: noOrder}
+						}
 					}
 				}
 
@@ -170,15 +197,29 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 					elevs[msg.ElevatorStatus.IP].OrderMatrix = msg.ElevatorStatus.OrderMatrix
 				}
 
-				// var e elevatorStatus.Elevator// bør fungere, spørr matias 
+			case message.LightUpdate:
+				//To turn off buttonlights
+				completed := msg.DelOrder
+				floor := msg.DelOrder[3]
+				for button := 0; button < driver.NUM_BUTTONS; button++{
+					if completed[button] == 1{
+						if button == 2{
+							if msg.RecieverIP == network.GetIpAddress(){
+								driver.Set_button_lamp(button,floor,0)
+							}
+						} else {
+							fmt.Println("floor i lights: ", floor)
+							driver.Set_button_lamp(button,floor,0)
+						}	
+					}
+				}
+				f := msg.Order[0]
+				b := msg.Order[1]
+				fmt.Println("f: ", f, "b: ", b)
+				if b < 2{
+				 	driver.Set_button_lamp(b, f, 1)
+				}
 
-				// e.Dir = msg.ElevatorStatus.Dir
-				// e.CurrentFloor = msg.ElevatorStatus.CurrentFloor
-				// e.PreviousFloor = msg.ElevatorStatus.PreviousFloor
-				// e.State = msg.ElevatorStatus.State
-				// e.IP = msg.ElevatorStatus.IP
-
-				// elevs[msg.ElevatorStatus.IP] = &e
 
 		}
 	}

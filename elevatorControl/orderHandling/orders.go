@@ -3,8 +3,10 @@ package orderHandling
 import(
 	"fmt"
 	"time"
+	"io/ioutil"
 	"../driver"
 	"../elevatorStatus"
+	"../../message"
 )
 
 
@@ -34,9 +36,13 @@ func AddOrderToQueue(e elevatorStatus.Elevator, order [2]int) elevatorStatus.Ele
 }
 
 //for n antall heiser.  ordren skal sendes til master i stedet for å legges inn i matrisen for n heiser
-func ReadButtons(buttonChan chan [2]int){
+func ReadButtons(buttonChan chan [2]int, elevChan chan elevatorStatus.Elevator){
 	var order [2]int
 	var prevOrder [2]int
+	prevOrder[0] = -1
+	prevOrder[1] = -1
+	e := message.MakeCopyOfElevator(elevChan)
+
 	for{
 		for floor := 0; floor < driver.NUM_FLOORS; floor++{
 			for button := driver.BUTTON_CALL_UP; button < driver.NUM_BUTTONS; button++{
@@ -47,11 +53,14 @@ func ReadButtons(buttonChan chan [2]int){
 					order[0] = floor
 					order[1] = int(button)
 
-
 					if prevOrder != order{
 						fmt.Println("Button pushed")
 						buttonChan <-order
 						prevOrder = order
+						if order[1] == 2{
+							driver.Set_button_lamp(order[1],order[0],1)
+							WriteInternals(e.OrderMatrix)
+						}
 						
 					}
 				}
@@ -74,6 +83,46 @@ func UpdateOrderMatrix(update [4][3]int, elevChan chan elevatorStatus.Elevator){
 	fmt.Println("OrderMatrix: ", e.OrderMatrix)
 	elevChan <-e
 }
+
+func WriteInternals(matrix [driver.NUM_FLOORS][driver.NUM_BUTTONS]int){
+	var array [4]int
+
+    for floor := 0; floor < driver.NUM_FLOORS; floor++ {
+    	array[floor] = matrix[floor][2]
+    }
+
+	
+	buffer := make([]byte, driver.NUM_FLOORS)
+	for floor := 0; floor < driver.NUM_FLOORS; floor++{
+		buffer[floor] = byte(array[floor])
+	}
+	ioutil.WriteFile("InternalOrders.txt", buffer, 0644)
+
+}
+
+func ReadInternals()[driver.NUM_FLOORS][driver.NUM_BUTTONS]int{
+	
+	buffer,err := ioutil.ReadFile("InternalOrders.txt")
+	
+	if err != nil{
+		fmt.Println("Error in opening file")
+	}
+	var array [4]int
+	for floor := 0; floor < driver.NUM_FLOORS; floor++{
+		array[floor] = int(buffer[floor])	
+	}
+
+	var matrix [driver.NUM_FLOORS][driver.NUM_BUTTONS] int
+
+    for floor := 0; floor < driver.NUM_FLOORS; floor++ {
+    	matrix[floor][2] = array[floor]
+    	if matrix[floor][2] == 1{
+			driver.Set_button_lamp(2, floor, 1)
+		}
+    }
+    return matrix
+}
+
 
 
 func ShouldStop(e elevatorStatus.Elevator)int{
