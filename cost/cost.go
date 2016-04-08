@@ -17,7 +17,7 @@ func absValue(sum int)int{
 }
 
 func CalculateCost(elevator elevatorStatus.Elevator, Order message.UpdateMessage)int{
-	sum := elevator.CurrentFloor-Order.Order[1]
+	sum := elevator.CurrentFloor-Order.Order[0]
 	var distanceCost int = absValue(sum)*5
 	var directionCost int = -1
 	belowOrAbove := elevator.CurrentFloor-Order.Order[1] 
@@ -36,6 +36,10 @@ func CalculateCost(elevator elevatorStatus.Elevator, Order message.UpdateMessage
 	queueCost := 20 * orderHandling.LengthOfQueue(elevator)
 	totalCost := distanceCost + directionCost + queueCost
 	
+	fmt.Println("distanceCost: ", distanceCost)
+	fmt.Println("directionCost: ", directionCost)
+	fmt.Println("totalCost: ", totalCost)
+
 	return totalCost
 	
 }
