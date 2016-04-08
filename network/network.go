@@ -33,7 +33,7 @@ func ClientConnection() *net.UDPConn{
 
 	conn, err := net.DialUDP("udp",nil,serverAddress)
 	if err != nil {
-		fmt.Println("Error: ", err)
+		fmt.Println("Error: ", err, conn)
 	}
 
 	return conn
@@ -47,6 +47,11 @@ func UDPListen(conn *net.UDPConn, buffer []byte) int{
 	size,_,err := conn.ReadFromUDP(buffer)
 	if err != nil {
 		fmt.Println("Error: ", err)
+		conn.Close()
+		newConn := ServerConnection()
+		if (newConn != nil){
+			*conn = *newConn
+		}
 	}
 	//fmt.Println("size: ", size)	
 	return size
@@ -54,7 +59,15 @@ func UDPListen(conn *net.UDPConn, buffer []byte) int{
 
 func UDPWrite(conn *net.UDPConn, buffer []byte){
 	//fmt.Println("Sending msg")
-	conn.Write(buffer)
+	_, err := conn.Write(buffer)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		conn.Close()
+		newConn := ClientConnection()
+		if (newConn != nil){
+			*conn = *newConn
+		}
+	}
 }
 
 func GetIpAddress()string{

@@ -9,7 +9,7 @@ import (
 
     "./network"
     "./message"
-    "fmt"
+    //"fmt"
     //"net"
     //"time"
 )
@@ -36,38 +36,27 @@ func main() {
 
 	newOrderToFSM := make(chan elevatorStatus.Elevator,100)
 	newStateUpdate := make(chan bool,100)
-	go eventHandler.MessageHandler(recvNetwork,sendNetwork,newOrderToFSM)
+	buttonChan := make(chan [2]int, 100)
+	powerChan := make(chan bool)
+	deleteChan := make(chan [4]int, 100)
+
+	go eventHandler.MessageHandler(recvNetwork,sendNetwork,newOrderToFSM, elevChan)
+	go eventHandler.EventHandler(newStateUpdate, buttonChan, powerChan, deleteChan, elevChan, sendNetwork)
 
 
-	buttonChan := make(chan [2]int, 20)
+
+
 	go orderHandling.ReadButtons(buttonChan, elevChan)
 	
 	// må lage en updatemessage med knappetrykket som sendes over nettverket til master
 
 	//FSM
-	deleteChan := make(chan [4]int, 10)
-	go elevatorControl.UpdateFSM(newOrderToFSM,newStateUpdate,deleteChan,elevChan)
+	
+	elevatorControl.UpdateFSM(newOrderToFSM,newStateUpdate,deleteChan,elevChan,powerChan)
 
-	for{
-		select{
-			case <-newStateUpdate:
-				fmt.Println("Sender ny state update") 
-				elev := message.MakeCopyOfElevator(elevChan)
-				fmt.Println("Elev in new state update: ", elev/*.IP*/)
-				sendNetwork <-message.UpdateMessage{MessageType: message.StateUpdate, ElevatorStatus: elev}
-			case order:= <-buttonChan:
-				fmt.Println("sent new order on network")
-				elev := message.MakeCopyOfElevator(elevChan)
-				sendNetwork <-message.UpdateMessage{MessageType: message.PlacedOrder, RecieverIP: elev.Master, Order: order,
-				ElevatorStatus: elev}
-				
-			case deleted := <-deleteChan:
-				elev := message.MakeCopyOfElevator(elevChan)
-				sendNetwork <-message.UpdateMessage{MessageType: message.CompletedOrder, DelOrder: deleted, ElevatorStatus: elev}
-
-		}
-	}
+	
 }
+
 
 
 	//Kjører en heis

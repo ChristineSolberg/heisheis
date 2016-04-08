@@ -6,7 +6,7 @@ import(
 	"io/ioutil"
 	"../driver"
 	"../elevatorStatus"
-	"../../message"
+	//"../../message"
 )
 
 
@@ -41,7 +41,7 @@ func ReadButtons(buttonChan chan [2]int, elevChan chan elevatorStatus.Elevator){
 	var prevOrder [2]int
 	prevOrder[0] = -1
 	prevOrder[1] = -1
-	e := message.MakeCopyOfElevator(elevChan)
+	//e := message.MakeCopyOfElevator(elevChan)
 
 	for{
 		for floor := 0; floor < driver.NUM_FLOORS; floor++{
@@ -49,7 +49,6 @@ func ReadButtons(buttonChan chan [2]int, elevChan chan elevatorStatus.Elevator){
 				if (floor == 0 && button == 1) || (floor == 3 && button == 0) || (floor < 0){
 				} else if driver.Get_button_signal(button, floor) == 1{
 					// sett knappelys
-
 					order[0] = floor
 					order[1] = int(button)
 
@@ -59,11 +58,12 @@ func ReadButtons(buttonChan chan [2]int, elevChan chan elevatorStatus.Elevator){
 						prevOrder = order
 						if order[1] == 2{
 							driver.Set_button_lamp(order[1],order[0],1)
-							WriteInternals(e.OrderMatrix)
-						}
-						
+						}	
 					}
-				}
+				} /*else if driver.Get_button_signal(button,floor) == 0 && prevOrder[0] != -1{ 
+					prevOrder[0] = -1
+				 	prevOrder[1] = -1
+				}*/
 			}
 		}
 	time.Sleep(time.Millisecond * 10)
@@ -96,6 +96,7 @@ func WriteInternals(matrix [driver.NUM_FLOORS][driver.NUM_BUTTONS]int){
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
 		buffer[floor] = byte(array[floor])
 	}
+	fmt.Printf("Array: %+v, Buffer: %+v\n", array, buffer)
 	ioutil.WriteFile("InternalOrders.txt", buffer, 0644)
 
 }
@@ -294,6 +295,10 @@ func DeleteCompletedOrders(e *elevatorStatus.Elevator, DelOrder chan [4]int){
 			DeleteOrder[0], DeleteOrder[1], DeleteOrder[2] = 1,1,1
 		}
 		fmt.Println(e.OrderMatrix)
+	}
+	if DeleteOrder[2] == 1{
+		floor := DeleteOrder[3]
+		driver.Set_button_lamp(2,floor,0)
 	}
 
 	DelOrder <-DeleteOrder

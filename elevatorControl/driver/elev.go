@@ -111,9 +111,9 @@ func Set_motor_speed(dir MotorDirection){
 func Set_button_lamp(button int, floor int, value int){
 
 	if (value == 1) {
-        IO_set_bit(lampChannel[floor][button]);
+        IO_set_bit(lampChannel[floor][button])
     } else {
-        IO_clear_bit(lampChannel[floor][button]);
+        IO_clear_bit(lampChannel[floor][button])
     }
 }
 

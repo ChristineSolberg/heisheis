@@ -19,7 +19,8 @@ const (
 	TIMER_OUT					= 1
 	NEXT_ORDER					= 2
 	NEW_ORDER_AT_CURRENT		= 3
-	NO_EVENT					= 4
+	POWER_OFF					= 4
+	NO_EVENT					= 5
 	
 )
 

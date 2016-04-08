@@ -55,27 +55,33 @@ func RecvMsg(conn *net.UDPConn, msgChan chan UpdateMessage) {
 			msgChan <- msg
 		}
 	}
-	defer conn.Close()
+	if (conn != nil){
+		defer conn.Close()
+	}
 }
 
 func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage, elevChan chan elevatorStatus.Elevator){
 	// må kjøre clientConnection() for denne funksjonen kjøres
-	defer conn.Close()
+	if (conn != nil){
+		defer conn.Close()
+	}
 	ticker := time.NewTicker(time.Millisecond*500)
-	e := MakeCopyOfElevator(elevChan)
-	for {
-		select{
-		case message := <-msgChan:
-			encoded := encodeUDPmsg(message)
-			buffer := []byte(encoded)
-			network.UDPWrite(conn, buffer)
+	if network.GetIpAddress() != "::1"{
+		e := MakeCopyOfElevator(elevChan)
+		for {
+			select{
+			case message := <-msgChan:
+				encoded := encodeUDPmsg(message)
+				buffer := []byte(encoded)
+				network.UDPWrite(conn, buffer)
+			
+			case <-ticker.C:
+				alive := UpdateMessage{MessageType: IAmAlive, ElevatorStatus: e}
+				encoded := encodeUDPmsg(alive)
+				buffer := []byte(encoded)
+				network.UDPWrite(conn, buffer)
 		
-		case <-ticker.C:
-			alive := UpdateMessage{MessageType: IAmAlive, ElevatorStatus: e}
-			encoded := encodeUDPmsg(alive)
-			buffer := []byte(encoded)
-			network.UDPWrite(conn, buffer)
-	
+			}
 		}
 	}
 }
@@ -89,10 +95,13 @@ func encodeUDPmsg(message UpdateMessage)[]byte{
 	}
 	return encoded
 }
+
+
     
 func MakeCopyOfElevator(elevChan chan elevatorStatus.Elevator)elevatorStatus.Elevator{
 	e := <- elevChan
 	elevChan <- e
 	fmt.Println("Made copy of elevator: ", e)
 	return e
-} 
+}
+
