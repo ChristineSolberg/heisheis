@@ -33,8 +33,8 @@ func selectMaster(elevs map[string]*elevatorStatus.Elevator){
 func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string, sendChan chan message.UpdateMessage, elevatorTimers map[string]*time.Timer){
 	elev := elevs[IP]
 	fmt.Println("delete this elevator: ", elev)
-	delete(elevs,IP)
 	delete(elevatorTimers, IP)
+	delete(elevs, IP)
 	selectMaster(elevs)
 	//If the deleted elevator had any external orders they need to be reassigned
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
@@ -66,7 +66,7 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 		//fmt.Println("Recieved message: ", msg)
 		msgType := msg.MessageType
 
-	
+		fmt.Println("MAP :: %v", elevs)
 		switch(msgType){
 			case message.IAmAlive:
 				var shouldAppend bool = true
@@ -74,15 +74,12 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 					if ip == msg.ElevatorStatus.IP{
 						//fmt.Println("1. IAmAlive")
 						shouldAppend = false
-						if ip != network.GetIpAddress(){
-							elevatorTimers[ip].Reset(time.Second*2)
-						}
+						elevatorTimers[ip].Reset(time.Second*2)
 						//fmt.Println("inne i IAmAlive", shouldAppend)
 					}
 				}	
 				if shouldAppend == true{
 					//fmt.Println("Oppdager heis for første gang: ")
-					//var e elevatorStatus.Elevator// bør fungere, spørr mathias 
 
 					elevs[msg.ElevatorStatus.IP] = new(elevatorStatus.Elevator)
 					elevs[msg.ElevatorStatus.IP].Dir = msg.ElevatorStatus.Dir
@@ -90,27 +87,20 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 					elevs[msg.ElevatorStatus.IP].PreviousFloor = msg.ElevatorStatus.PreviousFloor
 					elevs[msg.ElevatorStatus.IP].State = msg.ElevatorStatus.State
 					elevs[msg.ElevatorStatus.IP].IP = msg.ElevatorStatus.IP
-					// e.Dir = msg.ElevatorStatus.Dir
-					// e.CurrentFloor = msg.ElevatorStatus.CurrentFloor
-					// e.PreviousFloor = msg.ElevatorStatus.PreviousFloor
-					// e.State = msg.ElevatorStatus.State
-					// e.IP = msg.ElevatorStatus.IP
-
-					// elevs[msg.ElevatorStatus.IP] = &e
-
+					
 					
 					
 
 					for _,elev := range elevs{
 						fmt.Println("Elevators in map: ", elev)
 					}
-					if msg.ElevatorStatus.IP != network.GetIpAddress(){ 
-						elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() {deleteElevator(elevs,msg.ElevatorStatus.IP, sendChan,elevatorTimers)})
-					}
+					ip := msg.ElevatorStatus.IP
+					elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() { deleteElevator(elevs, ip, sendChan, elevatorTimers) })
+					
+					
+
 					selectMaster(elevs)
-					//for _,elev := range elevs{
-					//	fmt.Println("Elevators in map after master: ", elev)
-					//} 
+					 
 				}			
 
 			case message.PlacedOrder:
