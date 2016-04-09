@@ -108,11 +108,11 @@ func updateFSM_IDLE(event elevatorStatus.Event, elevChan chan elevatorStatus.Ele
 		driver.Set_motor_speed(e.Dir)
 		if (e.Dir == driver.MDIR_UP){
 			e.State = elevatorStatus.GO_UP
-			powerTimer.Reset(time.Second * 20)
+			powerTimer.Reset(time.Second * 7)
 			fmt.Println("Ny state: GO_UP")
 		} else if(e.Dir == driver.MDIR_DOWN){
 			e.State = elevatorStatus.GO_DOWN
-			powerTimer.Reset(time.Second * 20)
+			powerTimer.Reset(time.Second * 7)
 			fmt.Println("Ny state: GO_DOWN")
 		} else{
 			e.State = elevatorStatus.IDLE
@@ -154,7 +154,7 @@ func updateFSM_GO_UP(event elevatorStatus.Event,elevChan chan elevatorStatus.Ele
 			//Start timer, og legg true på doorTimeout når det har gått 3 sek.
 			DoorTimeout.Reset(time.Second*3)
 			//*DoorTimeout = time.Tick(time.Second * 3)
-			//powerTimer.Stop()
+			powerTimer.Stop()
 			fmt.Println("før delete i FLOOR_REACHED")
 			orderHandling.DeleteCompletedOrders(&e, DelOrder)
 			fmt.Println("etter delete i FLOOR_REACHED")
