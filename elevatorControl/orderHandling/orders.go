@@ -301,6 +301,15 @@ func DeleteCompletedOrders(e *elevatorStatus.Elevator, DelOrder chan [4]int){
 		driver.Set_button_lamp(2,floor,0)
 	}
 
+	if network.GetIpAdress() == "::1"{
+		for button := 0; button < driver.NUM_BUTTONS-1; button++{
+			floor := DeleteOrder[3]
+			driver.Set_button_lamp(button,floor,0)
+
+		}
+
+	}
+
 	DelOrder <-DeleteOrder
 
 }

@@ -30,7 +30,7 @@ func selectMaster(elevs map[string]*elevatorStatus.Elevator){
 	fmt.Println("New master: ", minimumIP)
 }
 
-func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string, sendChan chan message.UpdateMessage, elevatorTimers map[string]*time.Timer, myIP string, elevChan chan elevatorStatus.Elevator, abortElev chan bool){
+func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string, sendChan chan message.UpdateMessage, elevatorTimers map[string]*time.Timer, myIP string, elevChan chan elevatorStatus.Elevator, abortElev chan bool, MasterMatrix [driver.NUM_FLOORS][driver.NUM_BUTTONS]int){
 	elev := elevs[IP]
 	fmt.Println("IP: ", IP, "myIP: ", myIP)
 	fmt.Println("delete this elevator: ", elev)
@@ -51,16 +51,14 @@ func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string, sendCha
 			}
 		}
 	} else{
-		// // slett egne eksterne ordre
-		// e := <- elevChan
-		// for floor := 0; floor < driver.NUM_FLOORS; floor++{
-		// 	for button := 0; button < driver.NUM_BUTTONS-1; button++{
-		// 		e.OrderMatrix[floor][button] = 0
-		// 		driver.Set_button_lamp(button,floor,0)
+		e := <- elevChan
+		for floor := 0; floor < driver.NUM_FLOORS; floor++{
+			for button := 0; button < driver.NUM_BUTTONS-1; button++{
+				e.OrderMatrix[floor][button] = MasterMatrix[floor][button]
 
-		// 	}
-		// }
-		// elevChan <-e
+			}
+		}
+		elevChan <-e
 		abortElev <- true
 	}
 
@@ -139,7 +137,7 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 						fmt.Println("Elevators in map: ", elev)
 					}
 					ip := msg.ElevatorStatus.IP
-					elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() { deleteElevator(elevs, ip, sendChan, elevatorTimers, myIP, elevChan, abortElev) })
+					elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() { deleteElevator(elevs, ip, sendChan, elevatorTimers, myIP, elevChan, abortElev, MasterMatrix) })
 					
 					
 
