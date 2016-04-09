@@ -62,7 +62,7 @@ func UpdateFSM(newOrderToFSM chan elevatorStatus.Elevator, newStateUpdate chan b
 			}
 			newStateUpdate <- true
 		}
-		if turnOff == true{
+		if (turnOff == true && network.GetIpAddress() != "::1"){
 			fmt.Println("Slår av heis")
 			break
 		}
