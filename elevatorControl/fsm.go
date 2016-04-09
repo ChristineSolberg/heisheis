@@ -75,7 +75,7 @@ func UpdateFSM(newOrderToFSM chan elevatorStatus.Elevator, newStateUpdate chan b
 		
 		if turnOff == true{
 			fmt.Println("Slår av heis")
-			//break
+			break
 		}
 		//time.Sleep(time.Millisecond * 100)	
 	}
