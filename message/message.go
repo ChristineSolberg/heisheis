@@ -78,6 +78,7 @@ func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage, elevChan chan elevat
 			
 			case <- notAlive:
 				dontSend = true
+				fmt.Println("Du blir snart slått av, notAlive")
 			case <-ticker.C:
 				if dontSend != true{
 					alive := UpdateMessage{MessageType: IAmAlive, ElevatorStatus: e}

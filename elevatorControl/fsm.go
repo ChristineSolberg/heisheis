@@ -60,34 +60,14 @@ func UpdateFSM(newOrderToFSM chan elevatorStatus.Elevator, newStateUpdate chan b
 				fmt.Println("Error: No valid state in UpdateFSM")
 			
 			}
-			fmt.Println("sender newStateUpdate")
 			newStateUpdate <- true
-			//elevChan <- e		
 		}
-		//turnOff := <-abortElev
-
-		
-		/*var turnOff bool
-		
-		go abort(abortElev,&turnOff)	
-		fmt.Println("Vil aborte heis")	*/
-		
-		
 		if turnOff == true{
 			fmt.Println("Slår av heis")
 			break
 		}
-		//time.Sleep(time.Millisecond * 100)	
 	}
 }
-
-func abort(abortElev chan bool, turnOff *bool){
- 	*turnOff = <- abortElev
- 	fmt.Println("turnoff inne i abort: ", *turnOff)
-
- }
-
-
 
 func getElevatorState(elevChan chan elevatorStatus.Elevator)elevatorStatus.ElevState{
 	e := <- elevChan
@@ -95,9 +75,6 @@ func getElevatorState(elevChan chan elevatorStatus.Elevator)elevatorStatus.ElevS
 	elevChan <- e
 	return state
 }
-// Nå vil vi legge ut en "ny" e på newStateUpdate selv om Staten ikke nødvendigvis er oppdatert.
-// Blir dette for ofte? Burde vi heller sjekke om staten er forskjellig fra forrige gang, og kun oppdatere da?
-
 
 func updateFSM_IDLE(event elevatorStatus.Event, elevChan chan elevatorStatus.Elevator, DelOrder chan [4]int, powerTimer *time.Timer, doorTimer *time.Timer){// DoorTimeout *(<-chan time.Time)){
 	e := <- elevChan
@@ -108,11 +85,11 @@ func updateFSM_IDLE(event elevatorStatus.Event, elevChan chan elevatorStatus.Ele
 		driver.Set_motor_speed(e.Dir)
 		if (e.Dir == driver.MDIR_UP){
 			e.State = elevatorStatus.GO_UP
-			powerTimer.Reset(time.Second * 7)
+			powerTimer.Reset(time.Second * 20)
 			fmt.Println("Ny state: GO_UP")
 		} else if(e.Dir == driver.MDIR_DOWN){
 			e.State = elevatorStatus.GO_DOWN
-			powerTimer.Reset(time.Second * 7)
+			powerTimer.Reset(time.Second * 20)
 			fmt.Println("Ny state: GO_DOWN")
 		} else{
 			e.State = elevatorStatus.IDLE

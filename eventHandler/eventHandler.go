@@ -71,8 +71,7 @@ func EventHandler(newStateUpdate chan bool, buttonChan chan [2]int, powerChan ch
 	
 	for{
 		select{
-			case <-newStateUpdate:
-				fmt.Println("Sender ny state update") 
+			case <-newStateUpdate: 
 				elev := message.MakeCopyOfElevator(elevChan)
 				sendNetwork <-message.UpdateMessage{MessageType: message.StateUpdate, ElevatorStatus: elev}
 			case order:= <-buttonChan:
@@ -165,9 +164,9 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 						// Kall kostfunksjon og legg bestillingen (+valgt heis) på en channel - mellomledd før nettverket tar bestillingen videre herfra?
 						if button < 2{
 							MasterMatrix[floor][button] = 1
-							for _,elev := range elevs{
-								fmt.Println("Elevators in map før kostfunksjon: ", elev)
-							}
+							// for _,elev := range elevs{
+							// 	fmt.Println("Elevators in map før kostfunksjon: ", elev)
+							// }
 							AssignedElev := cost.AssignOrdersToElevator(msg, elevs)
 							//fmt.Println("AssignedElev: ", AssignedElev)
 							sendChan <-message.UpdateMessage{MessageType: message.AssignedOrder, Order: msg.Order, RecieverIP: AssignedElev}
@@ -243,13 +242,11 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 				floor := msg.DelOrder[3]
 				for button := 0; button < driver.NUM_BUTTONS-1; button++{
 					if completed[button] == 1{
-						fmt.Println("floor i lights: ", floor)
 						driver.Set_button_lamp(button,floor,0)
 					}
 				}
 				f := msg.Order[0]
 				b := msg.Order[1]
-				fmt.Println("f: ", f, "b: ", b)
 				if b < 2{
 				 	driver.Set_button_lamp(b, f, 1)
 				}
