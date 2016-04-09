@@ -51,16 +51,16 @@ func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string, sendCha
 			}
 		}
 	} else{
-		// slett egne eksterne ordre
-		e := <- elevChan
-		for floor := 0; floor < driver.NUM_FLOORS; floor++{
-			for button := 0; button < driver.NUM_BUTTONS-1; button++{
-				e.OrderMatrix[floor][button] = 0
-				driver.Set_button_lamp(button,floor,0)
+		// // slett egne eksterne ordre
+		// e := <- elevChan
+		// for floor := 0; floor < driver.NUM_FLOORS; floor++{
+		// 	for button := 0; button < driver.NUM_BUTTONS-1; button++{
+		// 		e.OrderMatrix[floor][button] = 0
+		// 		driver.Set_button_lamp(button,floor,0)
 
-			}
-		}
-		elevChan <-e
+		// 	}
+		// }
+		// elevChan <-e
 		abortElev <- true
 	}
 
