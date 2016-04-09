@@ -45,8 +45,8 @@ func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string, sendCha
 					var order [2]int
 					order[0] = floor
 					order[1] = button
-					fmt.Println("Order: ", order, "RecieverIP: ", elevs[IP].Master )
-					sendChan <-message.UpdateMessage{MessageType: message.PlacedOrder, Order: order, RecieverIP: myIP/*elevs[myIP].Master*/}
+					fmt.Println("Order: ", order, "RecieverIP: ", elevs[myIP].Master )
+					//sendChan <-message.UpdateMessage{MessageType: message.PlacedOrder, Order: order, RecieverIP: elevs[myIP].Master}
 				}
 			}
 		}
