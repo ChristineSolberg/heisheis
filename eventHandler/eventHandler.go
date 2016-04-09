@@ -61,10 +61,10 @@ func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string, sendCha
 			}
 		}
 		elevChan <-e
+		abortElev <- true
 	}
 
-
-	abortElev <- true
+	
 
 }
 func EventHandler(newStateUpdate chan bool, buttonChan chan [2]int, powerChan chan bool, deleteChan chan [4]int, elevChan chan elevatorStatus.Elevator, sendNetwork chan message.UpdateMessage,  notAlive chan bool){
