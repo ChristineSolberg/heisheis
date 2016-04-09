@@ -32,7 +32,7 @@ func selectMaster(elevs map[string]*elevatorStatus.Elevator){
 
 func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string, sendChan chan message.UpdateMessage, elevatorTimers map[string]*time.Timer, myIP string, elevChan chan elevatorStatus.Elevator, abortElev chan bool){
 	elev := elevs[IP]
-
+	fmt.Println("IP: ", IP, "myIP: ", myIP)
 	fmt.Println("delete this elevator: ", elev)
 	delete(elevatorTimers, IP)
 	delete(elevs, IP)
