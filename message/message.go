@@ -60,12 +60,13 @@ func RecvMsg(conn *net.UDPConn, msgChan chan UpdateMessage) {
 	}
 }
 
-func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage, elevChan chan elevatorStatus.Elevator){
+func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage, elevChan chan elevatorStatus.Elevator, notAlive chan bool){
 	// må kjøre clientConnection() for denne funksjonen kjøres
 	if (conn != nil){
 		defer conn.Close()
 	}
 	ticker := time.NewTicker(time.Millisecond*500)
+	var dontSend bool = false
 	if network.GetIpAddress() != "::1"{
 		e := MakeCopyOfElevator(elevChan)
 		for {
@@ -75,12 +76,15 @@ func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage, elevChan chan elevat
 				buffer := []byte(encoded)
 				network.UDPWrite(conn, buffer)
 			
+			case <- notAlive:
+				dontSend = true
 			case <-ticker.C:
-				alive := UpdateMessage{MessageType: IAmAlive, ElevatorStatus: e}
-				encoded := encodeUDPmsg(alive)
-				buffer := []byte(encoded)
-				network.UDPWrite(conn, buffer)
-		
+				if dontSend != true{
+					alive := UpdateMessage{MessageType: IAmAlive, ElevatorStatus: e}
+					encoded := encodeUDPmsg(alive)
+					buffer := []byte(encoded)
+					network.UDPWrite(conn, buffer)
+				}
 			}
 		}
 	}

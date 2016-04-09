@@ -30,7 +30,7 @@ func selectMaster(elevs map[string]*elevatorStatus.Elevator){
 	fmt.Println("New master: ", minimumIP)
 }
 
-func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string, sendChan chan message.UpdateMessage, elevatorTimers map[string]*time.Timer, myIP string, elevChan chan elevatorStatus.Elevator){
+func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string, sendChan chan message.UpdateMessage, elevatorTimers map[string]*time.Timer, myIP string, elevChan chan elevatorStatus.Elevator, abortElev chan bool){
 	elev := elevs[IP]
 
 	fmt.Println("delete this elevator: ", elev)
@@ -61,8 +61,12 @@ func deleteElevator(elevs map[string]*elevatorStatus.Elevator,IP string, sendCha
 		}
 		elevChan <-e
 	}
+
+
+	abortElev <- true
+
 }
-func EventHandler(newStateUpdate chan bool, buttonChan chan [2]int, powerChan chan bool, deleteChan chan [4]int, elevChan chan elevatorStatus.Elevator, sendNetwork chan message.UpdateMessage){
+func EventHandler(newStateUpdate chan bool, buttonChan chan [2]int, powerChan chan bool, deleteChan chan [4]int, elevChan chan elevatorStatus.Elevator, sendNetwork chan message.UpdateMessage,  notAlive chan bool){
 	
 	for{
 		select{
@@ -77,18 +81,9 @@ func EventHandler(newStateUpdate chan bool, buttonChan chan [2]int, powerChan ch
 				sendNetwork <-message.UpdateMessage{MessageType: message.PlacedOrder, RecieverIP: elev.Master, Order: order,
 				ElevatorStatus: elev}
 			case <-powerChan:
-				elev := message.MakeCopyOfElevator(elevChan)
-				var order [2]int
-				for floor := 0; floor < driver.NUM_FLOORS; floor++{
-					for button := 0; button < driver.NUM_BUTTONS; button++{
-						if elev.OrderMatrix[floor][button] == 1{
-							order[0] = floor
-							order[1] = button
-							sendNetwork <-message.UpdateMessage{MessageType: message.PlacedOrder, RecieverIP: elev.Master, Order: order,
-							ElevatorStatus: elev}
-						}
-					}
-				}
+				notAlive <- true
+				fmt.Println("Det har blitt lagt noe på powerChan")
+				
 			case deleted := <-deleteChan:
 				elev := message.MakeCopyOfElevator(elevChan)
 				orderHandling.WriteInternals(elev.OrderMatrix)
@@ -98,7 +93,9 @@ func EventHandler(newStateUpdate chan bool, buttonChan chan [2]int, powerChan ch
 	}
 }
 
-func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.UpdateMessage, newOrderToFSM chan elevatorStatus.Elevator, elevChan chan elevatorStatus.Elevator){ // +order message.UpdateMessage
+ 
+
+func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.UpdateMessage, newOrderToFSM chan elevatorStatus.Elevator, elevChan chan elevatorStatus.Elevator, abortElev chan bool){ // +order message.UpdateMessage
 	var msg message.UpdateMessage
 	// sjekk om mottatt melding er sent fra en av våre heiser, før det legges ut på channel til main
 	
@@ -142,7 +139,7 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 						fmt.Println("Elevators in map: ", elev)
 					}
 					ip := msg.ElevatorStatus.IP
-					elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() { deleteElevator(elevs, ip, sendChan, elevatorTimers, myIP, elevChan) })
+					elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() { deleteElevator(elevs, ip, sendChan, elevatorTimers, myIP, elevChan, abortElev) })
 					
 					
 
