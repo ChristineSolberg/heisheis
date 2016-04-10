@@ -157,7 +157,7 @@ func Set_stop_lamp(value int) {
     }
 }
 
-func Get_button_signal(button ButtonType, floor int)int{
+func Get_button_signal(button int, floor int)int{
 	if (floor < 0 || floor > NUM_FLOORS || button < 0 || button > NUM_BUTTONS){
     	fmt.Println("Error: Get_button_signal")
 

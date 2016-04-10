@@ -6,9 +6,6 @@ import(
 	"strings"
 	)
 
-
-
-
 func ServerConnection()*net.UDPConn{ 
 	port := ":5555"
 	udpAddress, err := net.ResolveUDPAddr("udp", port)

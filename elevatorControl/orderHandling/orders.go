@@ -19,19 +19,6 @@ func AddOrderToQueue(e elevatorStatus.Elevator, order [2]int) elevatorStatus.Ele
 	floor := order[0]
 	button := order[1]
 	e.OrderMatrix[floor][button] = 1
-
-
-
-
-	// for floor := 0; floor < driver.NUM_FLOORS; floor++{
-	// 	for button := driver.BUTTON_CALL_UP; button <= driver.BUTTON_COMMAND ; button++{
-	// 		if (floor == 0 && button == 1) || (floor == 3 && button == 0) || (floor < 0){
-	// 		} else if {
-	// 			e.OrderMatrix[floor][button] = 1
-	// 			// sett knappelys
-	// 		}
-	// 	}
-	// }
 	return e
 }
 
@@ -45,25 +32,25 @@ func ReadButtons(buttonChan chan [2]int, elevChan chan elevatorStatus.Elevator){
 
 	for{
 		for floor := 0; floor < driver.NUM_FLOORS; floor++{
-			for button := driver.BUTTON_CALL_UP; button < driver.NUM_BUTTONS; button++{
+			for button := 0; button < driver.NUM_BUTTONS; button++{
 				if (floor == 0 && button == 1) || (floor == 3 && button == 0) || (floor < 0){
 				} else if driver.Get_button_signal(button, floor) == 1{
 					// sett knappelys
 					order[0] = floor
-					order[1] = int(button)
+					order[1] = button
 
 					if prevOrder != order{
 						fmt.Println("Button pushed")
 						buttonChan <-order
 						prevOrder = order
-						if order[1] == 2{
+						if order[1] == driver.BUTTON_COMMAND{
 							driver.Set_button_lamp(order[1],order[0],1)
 						}	
 					}
-				} /*else if driver.Get_button_signal(button,floor) == 0 && prevOrder[0] != -1{ 
+				} else if driver.Get_button_signal(button,floor) == 0 && prevOrder[0] != -1{ 
 					prevOrder[0] = -1
 				 	prevOrder[1] = -1
-				}*/
+				}
 			}
 		}
 	time.Sleep(time.Millisecond * 10)
@@ -71,7 +58,7 @@ func ReadButtons(buttonChan chan [2]int, elevChan chan elevatorStatus.Elevator){
 }
 
 
-func UpdateOrderMatrix(update [4][3]int, elevChan chan elevatorStatus.Elevator){
+func UpdateOrderMatrix(update [driver.NUM_FLOORS][driver.NUM_BUTTONS]int, elevChan chan elevatorStatus.Elevator){
 	e := <-elevChan
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
 		for button := driver.BUTTON_CALL_UP; button < driver.NUM_BUTTONS; button++{
@@ -85,7 +72,7 @@ func UpdateOrderMatrix(update [4][3]int, elevChan chan elevatorStatus.Elevator){
 }
 
 func WriteInternals(matrix [driver.NUM_FLOORS][driver.NUM_BUTTONS]int){
-	var array [4]int
+	var array [driver.NUM_FLOORS]int
 
     for floor := 0; floor < driver.NUM_FLOORS; floor++ {
     	array[floor] = matrix[floor][2]
@@ -108,7 +95,7 @@ func ReadInternals()[driver.NUM_FLOORS][driver.NUM_BUTTONS]int{
 	if err != nil{
 		fmt.Println("Error in opening file")
 	}
-	var array [4]int
+	var array [driver.NUM_FLOORS]int
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
 		array[floor] = int(buffer[floor])	
 	}
@@ -260,7 +247,7 @@ func NewOrderAtCurrentFloor(e elevatorStatus.Elevator)int{
 
 func DeleteCompletedOrders(e *elevatorStatus.Elevator, DelOrder chan [4]int){
 	e.CurrentFloor =  driver.Get_floor_sensor_signal()
-	DeleteOrder := [4]int{0, 0, 0, 0}
+	DeleteOrder := [4]int{0, 0, 0, 0}  //{button up, button down, internal button, floor}
 	DeleteOrder[3] = e.CurrentFloor
 	fmt.Println("Sletter utført bestilling", e.Dir, e.CurrentFloor)
 	if e.CurrentFloor != -1{

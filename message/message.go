@@ -4,8 +4,8 @@ import(
 	"net"
 	"fmt"
 	"time"
-	"../network"
 	"encoding/json"
+	"../network"
 	"../elevatorControl/elevatorStatus"
 
 	)
@@ -19,25 +19,13 @@ const(
 	LightUpdate = 6
 )
 
-const(
-	Down 		= -1
-	Idle 		= 0
-	Up 			= 1
-)
-
-const(
-	First		= 1
-	Second		= 2
-	Third		= 3
-	Fourth		= 4
-)
-
 type UpdateMessage struct{
 	MessageType int
 	RecieverIP string
 	Order [2] int   // [button, floor]
 	DelOrder [4] int
 	ElevatorStatus elevatorStatus.Elevator
+	CheckSum float64
 	
 }
 
@@ -92,7 +80,6 @@ func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage, elevChan chan elevat
 }
 
 
-
 func encodeUDPmsg(message UpdateMessage)[]byte{
 	encoded,err := json.Marshal(message)
 	if err != nil{
@@ -100,13 +87,10 @@ func encodeUDPmsg(message UpdateMessage)[]byte{
 	}
 	return encoded
 }
-
-
-    
+  
 func MakeCopyOfElevator(elevChan chan elevatorStatus.Elevator)elevatorStatus.Elevator{
 	e := <- elevChan
 	elevChan <- e
-	fmt.Println("Made copy of elevator: ", e)
 	return e
 }
 

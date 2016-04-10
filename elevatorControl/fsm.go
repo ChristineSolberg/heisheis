@@ -1,10 +1,9 @@
 package elevatorControl
 
 import(
-	
-	"./driver"
 	"fmt"
 	"time"
+	"./driver"
 	"./orderHandling"
 	"./elevatorStatus"
 	"../network"
@@ -319,6 +318,13 @@ func StartUp(elevChan chan elevatorStatus.Elevator){
 	fmt.Println("Floor: ", driver.Get_floor_sensor_signal()) //Kan fjernes
 
 	var e elevatorStatus.Elevator
+	fmt.Println("Ready to start when network connection is established")
+	for {
+		if network.GetIpAddress() != "::1"{
+			fmt.Println("Have established a network connection")
+			break
+		}
+	}
 
 	//If the elevator is in between two floors, it will go down to the nearest floor below
 	for (driver.Get_floor_sensor_signal() == -1){
@@ -355,4 +361,3 @@ func StartUp(elevChan chan elevatorStatus.Elevator){
 func changeElev(e elevatorStatus.Elevator, elevChan chan elevatorStatus.Elevator){
 	elevChan <- e 
 }
-//Hvorfor går ikke dette uten go routine??

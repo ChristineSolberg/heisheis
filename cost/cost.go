@@ -1,11 +1,11 @@
 package cost
 
 import(
+	"fmt"
 	"../elevatorControl/driver"
 	"../message"
 	"../elevatorControl/orderHandling"
 	"../elevatorControl/elevatorStatus"
-	"fmt"
 )
 
 func absValue(sum int)int{
