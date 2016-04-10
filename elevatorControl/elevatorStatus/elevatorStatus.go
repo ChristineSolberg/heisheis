@@ -1,12 +1,10 @@
 package elevatorStatus
 
-import (
-	"../driver"
-	)
+import "../driver"
 
-type ElevState int
+type State int
 const (
-	IDLE  			ElevState 	= 0 
+	IDLE  			State 	= 0 
 	GO_UP					= 1
 	GO_DOWN					= 2
 	DOOR_OPEN				= 3
@@ -20,16 +18,20 @@ const (
 	NEW_ORDER_AT_CURRENT		= 3
 	POWER_OFF					= 4
 	NO_EVENT					= 5
-	
 )
 
 type Elevator struct{
-	Dir driver.MotorDirection
+	Direction driver.MotorDirection
 	CurrentFloor int
 	PreviousFloor int
-	State ElevState
+	State State
 	IP string
 	OrderMatrix [driver.NUM_FLOORS][driver.NUM_BUTTONS]int
 	Master string
-	//DoorTimeout <-chan time.Time
+}
+
+func MakeCopyOfElevator(elevChan chan Elevator)Elevator{
+	e := <- elevChan
+	elevChan <- e
+	return e
 }

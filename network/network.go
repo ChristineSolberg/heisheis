@@ -10,13 +10,11 @@ func ServerConnection()*net.UDPConn{
 	port := ":5555"
 	udpAddress, err := net.ResolveUDPAddr("udp", port)
 	if err != nil {
-		fmt.Println("Error: ", err)
+		fmt.Println("Error in ServerConnection: ", err)
 	}
-	// error handling here 
-
 	conn, err := net.ListenUDP("udp", udpAddress)
 	if err != nil {
-		fmt.Println("Error: ", err)
+		fmt.Println("Error in ServerConnection: ", err)
 	}
 	return conn
 }
@@ -25,40 +23,32 @@ func ClientConnection() *net.UDPConn{
 	port := ":5555"
 	serverAddress, err := net.ResolveUDPAddr("udp", "129.241.187.255" + port)
 	if err != nil {
-		fmt.Println("Error: ", err)
+		fmt.Println("Error in ClientConnection: ", err)
 	}
-
 	conn, err := net.DialUDP("udp",nil,serverAddress)
 	if err != nil {
-		fmt.Println("Error: ", err, conn)
+		fmt.Println("Error in ClientConnection: ", err, conn)
 	}
-
 	return conn
-	// when to use conn.close()??
 }
 
-
-
 func UDPListen(conn *net.UDPConn, buffer []byte) int{
-	//fmt.Println("Waiting for msg")
 	size,_,err := conn.ReadFromUDP(buffer)
 	if err != nil {
-		fmt.Println("Error: ", err)
+		fmt.Println("Error in UDPListen: ", err)
 		conn.Close()
 		newConn := ServerConnection()
 		if (newConn != nil){
 			*conn = *newConn
 		}
 	}
-	//fmt.Println("size: ", size)	
 	return size
 }
 
 func UDPWrite(conn *net.UDPConn, buffer []byte){
-	//fmt.Println("Sending msg")
 	_, err := conn.Write(buffer)
 	if err != nil {
-		fmt.Println("Error: ", err)
+		fmt.Println("Error in UDPWrite: ", err)
 		conn.Close()
 		newConn := ClientConnection()
 		if (newConn != nil){
@@ -72,6 +62,3 @@ func GetIpAddress()string{
     ip:=strings.Split(ipAdd[1].String(),"/")[0]
     return ip
 }
-
-
-

@@ -9,38 +9,26 @@ import(
 	"../../network"
 )
 
-
-
-// this is for one elevator, når n heiser, skal få ordre fra master og ikke les av knappetrykk
-
-// For tre heiser: Dette skal kun gjøres når knappene inni heisen trykkes
 func AddOrderToQueue(e elevatorStatus.Elevator, order [2]int) elevatorStatus.Elevator{
-	fmt.Println("inne i addorderqueue")
 	floor := order[0]
 	button := order[1]
 	e.OrderMatrix[floor][button] = 1
 	return e
 }
 
-//for n antall heiser.  ordren skal sendes til master i stedet for å legges inn i matrisen for n heiser
 func ReadButtons(buttonChan chan [2]int, elevChan chan elevatorStatus.Elevator){
 	var order [2]int
 	var prevOrder [2]int
 	prevOrder[0] = -1
 	prevOrder[1] = -1
-	//e := message.MakeCopyOfElevator(elevChan)
-
 	for{
 		for floor := 0; floor < driver.NUM_FLOORS; floor++{
 			for button := 0; button < driver.NUM_BUTTONS; button++{
 				if (floor == 0 && button == 1) || (floor == 3 && button == 0) || (floor < 0){
 				} else if driver.Get_button_signal(button, floor) == 1{
-					// sett knappelys
 					order[0] = floor
 					order[1] = button
-
 					if prevOrder != order{
-						fmt.Println("Button pushed")
 						buttonChan <-order
 						prevOrder = order
 						if order[1] == driver.BUTTON_COMMAND{
@@ -57,7 +45,6 @@ func ReadButtons(buttonChan chan [2]int, elevChan chan elevatorStatus.Elevator){
 	}
 }
 
-
 func UpdateOrderMatrix(update [driver.NUM_FLOORS][driver.NUM_BUTTONS]int, elevChan chan elevatorStatus.Elevator){
 	e := <-elevChan
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
@@ -67,43 +54,33 @@ func UpdateOrderMatrix(update [driver.NUM_FLOORS][driver.NUM_BUTTONS]int, elevCh
 			}
 		}
 	}
-	fmt.Println("OrderMatrix: ", e.OrderMatrix)
 	elevChan <-e
 }
 
-func WriteInternals(matrix [driver.NUM_FLOORS][driver.NUM_BUTTONS]int){
-	var array [driver.NUM_FLOORS]int
-
+func WriteInternalsToFile(matrix [driver.NUM_FLOORS][driver.NUM_BUTTONS]int){
+	var internalOrders [driver.NUM_FLOORS]int
     for floor := 0; floor < driver.NUM_FLOORS; floor++ {
-    	array[floor] = matrix[floor][2]
+    	internalOrders[floor] = matrix[floor][2]
     }
-
-	
 	buffer := make([]byte, driver.NUM_FLOORS)
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
-		buffer[floor] = byte(array[floor])
+		buffer[floor] = byte(internalOrders[floor])
 	}
-	fmt.Printf("Array: %+v, Buffer: %+v\n", array, buffer)
 	ioutil.WriteFile("InternalOrders.txt", buffer, 0644)
-
 }
 
-func ReadInternals()[driver.NUM_FLOORS][driver.NUM_BUTTONS]int{
-	
+func ReadInternalsToFile()[driver.NUM_FLOORS][driver.NUM_BUTTONS]int{
 	buffer,err := ioutil.ReadFile("InternalOrders.txt")
-	
 	if err != nil{
 		fmt.Println("Error in opening file")
 	}
-	var array [driver.NUM_FLOORS]int
+	var internalOrders [driver.NUM_FLOORS]int
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
-		array[floor] = int(buffer[floor])	
+		internalOrders[floor] = int(buffer[floor])	
 	}
-
 	var matrix [driver.NUM_FLOORS][driver.NUM_BUTTONS] int
-
     for floor := 0; floor < driver.NUM_FLOORS; floor++ {
-    	matrix[floor][2] = array[floor]
+    	matrix[floor][2] = internalOrders[floor]
     	if matrix[floor][2] == 1{
 			driver.Set_button_lamp(2, floor, 1)
 		}
@@ -111,93 +88,82 @@ func ReadInternals()[driver.NUM_FLOORS][driver.NUM_BUTTONS]int{
     return matrix
 }
 
-
-
-func ShouldStop(e elevatorStatus.Elevator)int{
-	//Lag denne senere - kanskje i queue
+func ShouldStop(e elevatorStatus.Elevator)bool{
 	e.CurrentFloor = driver.Get_floor_sensor_signal()
 	fmt.Println ("Floor: ", e.CurrentFloor)
-	var result int = 0
-
-	//SETT PREVIOUS FLOOR HER!!
+	var shouldStop bool = false
 	var previousFloor int = e.PreviousFloor
 	e.PreviousFloor = e.CurrentFloor
-	
 	if(e.CurrentFloor > previousFloor){
 		if (e.OrderMatrix[e.CurrentFloor][2] == 1) || (e.OrderMatrix[e.CurrentFloor][0] == 1){
-			result = 1	
+			shouldStop = true	
 		}
 		if e.CurrentFloor == 3{
-			result = 1
+			shouldStop = true
 		}
-		if (CheckUpOrdersAbove(e) != 1 && CheckDownOrdersAbove(e) != 1){
-			result = 1				
+		if (CheckUpOrdersAbove(e) != true && CheckDownOrdersAbove(e) != true){
+			shouldStop = true				
 		}
 	} else if(e.CurrentFloor < previousFloor){
 		if (e.OrderMatrix[e.CurrentFloor][2] == 1) || (e.OrderMatrix[e.CurrentFloor][1] == 1){
-			result = 1
+			shouldStop = true
 		}
 		if e.CurrentFloor == 0{
-			result = 1
+			shouldStop = true
 		}
-		if (CheckUpOrdersBelow(e) != 1 && CheckDownOrdersBelow(e) != 1){
-			result = 1
+		if (CheckUpOrdersBelow(e) != true && CheckDownOrdersBelow(e) != true){
+			shouldStop = true
 		}
 	}
-	return result
+	return shouldStop
 }
 
-func CheckUpOrdersAbove(e elevatorStatus.Elevator)int{
-	var result int = 0
+func CheckUpOrdersAbove(e elevatorStatus.Elevator)bool{
+	var found bool = false
 	for floor := e.CurrentFloor+1; floor < driver.NUM_FLOORS; floor++{
 		if(e.OrderMatrix[floor][0] == 1){
-			fmt.Println("Fant en OPP-bestilling over")
-			result = 1
+			found = true
 		}
 		if(e.OrderMatrix[floor][2] == 1){
-			result = 1
+			found = true
 		}				
 	}
-	return result
+	return found
 }
 
-func CheckDownOrdersAbove(e elevatorStatus.Elevator)int{
-	var result int = 0
+func CheckDownOrdersAbove(e elevatorStatus.Elevator)bool{
+	var found bool = false
 	for floor := e.CurrentFloor+1; floor < driver.NUM_FLOORS; floor++{
 		if(e.OrderMatrix[floor][1] == 1){
-			fmt.Println("Fant en NED-bestilling over")
-			result = 1
+			found = true
 		}
 	}
-	return result	
+	return found	
 } 
 
-func CheckUpOrdersBelow(e elevatorStatus.Elevator)int{
-	var result int = 0
+func CheckUpOrdersBelow(e elevatorStatus.Elevator)bool{
+	var found bool = false
 	for floor := 0; floor < e.CurrentFloor; floor++{
 		if(e.OrderMatrix[floor][0] == 1){
-			fmt.Println("Fant en OPP-bestilling under")
-			result = 1
+			found = true
 		}
 	}
-	return result
+	return found
 }
 
-func CheckDownOrdersBelow(e elevatorStatus.Elevator)int{
-	var result int = 0
+func CheckDownOrdersBelow(e elevatorStatus.Elevator)bool{
+	var found bool = false
 	for floor := 0; floor < e.CurrentFloor; floor++{				
 			if(e.OrderMatrix[floor][1] == 1){
-				fmt.Println("Fant en NED-bestilling under")
-				result = 1
+				found = true
 			} else if(e.OrderMatrix[floor][2] == 1){
-				result = 1
+				found = true
 			}	
 	}
-	return result
+	return found
 }
 
 func LengthOfQueue(e elevatorStatus.Elevator)int{
-	//fmt.Println(e.OrderMatrix)
 	length := 0
 	for floor := 0; floor < driver.NUM_FLOORS; floor++{
 		for button := 0; button < driver.NUM_BUTTONS; button++{
@@ -210,93 +176,79 @@ func LengthOfQueue(e elevatorStatus.Elevator)int{
 	return length
 }
 
-func NewOrderAtCurrentFloor(e elevatorStatus.Elevator)int{
+func NewOrderAtCurrentFloor(e elevatorStatus.Elevator)bool{
 	e.CurrentFloor = driver.Get_floor_sensor_signal()
-	var result int = 0
+	var found bool = false
 	if(e.CurrentFloor==3){	
 		if (e.OrderMatrix[e.CurrentFloor][1] == 1){
-			result = 1
+			found = true
 		} else if (e.OrderMatrix[e.CurrentFloor][2] == 1){
-			result = 1
+			found = true
 		}
 	} else if(e.CurrentFloor==0){	
 		if (e.OrderMatrix[e.CurrentFloor][0] == 1){
-			result = 1
+			found = true
 		} else if (e.OrderMatrix[e.CurrentFloor][2] == 1){
-			result = 1
+			found = true
 		}
 	} 
-
-	if(e.Dir != driver.MDIR_DOWN){
+	if(e.Direction != driver.MDIR_DOWN){
 		if (e.OrderMatrix[e.CurrentFloor][0] == 1){
-			result = 1
+			found = true
 		} else if (e.OrderMatrix[e.CurrentFloor][2] == 1){
-			result = 1						
+			found = true						
 		}
 	} 
-
-	if(e.Dir != driver.MDIR_UP){
+	if(e.Direction != driver.MDIR_UP){
 		if (e.OrderMatrix[e.CurrentFloor][1] == 1){
-			result = 1
+			found = true
 		} else if (e.OrderMatrix[e.CurrentFloor][2] == 1){
-			result = 1						
+			found = true					
 		}
 	}
-	return result
+	return found
 }
 
 func DeleteCompletedOrders(e *elevatorStatus.Elevator, DelOrder chan [4]int){
 	e.CurrentFloor =  driver.Get_floor_sensor_signal()
 	DeleteOrder := [4]int{0, 0, 0, 0}  //{button up, button down, internal button, floor}
 	DeleteOrder[3] = e.CurrentFloor
-	fmt.Println("Sletter utført bestilling", e.Dir, e.CurrentFloor)
 	if e.CurrentFloor != -1{
 		if e.CurrentFloor == 0{
 			e.OrderMatrix[e.CurrentFloor][0], e.OrderMatrix[e.CurrentFloor][2] = 0,0
 			DeleteOrder[0], DeleteOrder[2] = 1,1
-			
 		} else if e.CurrentFloor == 3{
 			e.OrderMatrix[e.CurrentFloor][1],e.OrderMatrix[e.CurrentFloor][2] = 0,0
 			DeleteOrder[1], DeleteOrder[2] = 1,1
 		}
-
-		if e.Dir == driver.MDIR_UP{
-			fmt.Println("Sletter når retn er OPP")
+		if e.Direction == driver.MDIR_UP{
 			e.OrderMatrix[e.CurrentFloor][0], e.OrderMatrix[e.CurrentFloor][2] = 0,0
 			DeleteOrder[0], DeleteOrder[2] = 1,1
-			if (CheckUpOrdersAbove(*e) != 1 && CheckDownOrdersAbove(*e) != 1){
+			if (CheckUpOrdersAbove(*e) != true && CheckDownOrdersAbove(*e) != true){
 				e.OrderMatrix[e.CurrentFloor][1] = 0
 				DeleteOrder[1]= 1
 			}
-
-		} else if e.Dir == driver.MDIR_DOWN{
-			fmt.Println("Sletter når retn er NED")
+		} else if e.Direction == driver.MDIR_DOWN{
 			e.OrderMatrix[e.CurrentFloor][1], e.OrderMatrix[e.CurrentFloor][2] = 0,0
 			DeleteOrder[1], DeleteOrder[2] = 1,1
-			if (CheckUpOrdersBelow(*e) != 1 && CheckDownOrdersBelow(*e) != 1){
+			if (CheckUpOrdersBelow(*e) != true && CheckDownOrdersBelow(*e) != true){
 				e.OrderMatrix[e.CurrentFloor][0] = 0
 				DeleteOrder[0]= 1
 			}
-		} else if e.Dir == driver.MDIR_STOP{
+		} else if e.Direction == driver.MDIR_STOP{
 			e.OrderMatrix[e.CurrentFloor][0], e.OrderMatrix[e.CurrentFloor][1], e.OrderMatrix[e.CurrentFloor][2] = 0,0,0
 			DeleteOrder[0], DeleteOrder[1], DeleteOrder[2] = 1,1,1
 		}
-		fmt.Println(e.OrderMatrix)
 	}
 	if DeleteOrder[2] == 1{
 		floor := DeleteOrder[3]
 		driver.Set_button_lamp(2,floor,0)
 	}
-
 	if network.GetIpAddress() == "::1"{
 		for button := 0; button < driver.NUM_BUTTONS-1; button++{
 			floor := DeleteOrder[3]
 			driver.Set_button_lamp(button,floor,0)
-
 		}
-
 	}
-
 	DelOrder <-DeleteOrder
-
 }
