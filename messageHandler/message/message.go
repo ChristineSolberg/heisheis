@@ -1,65 +1,65 @@
 package message
 
-import(
-	"net"
-	"fmt"
-	"time"
-	"encoding/json"
-	"../../network"
+import (
 	"../../elevatorControl/elevatorStatus"
-	)
-
-const(
-	IAmAlive 		= 1
-	PlacedOrder 	= 2
-	AssignedOrder 	= 3
-	CompletedOrder 	= 4
-	StateUpdate 	= 5
-	LightUpdate 	= 6
+	"../../network"
+	"encoding/json"
+	"fmt"
+	"net"
+	"time"
 )
 
-type UpdateMessage struct{
-	MessageType int
-	RecieverIP string
-	Order [2] int   //[button, floor]
-	DelOrder [4] int
+const (
+	IAmAlive       = 1
+	PlacedOrder    = 2
+	AssignedOrder  = 3
+	CompletedOrder = 4
+	StateUpdate    = 5
+	LightUpdate    = 6
+)
+
+type UpdateMessage struct {
+	MessageType    int
+	RecieverIP     string
+	Order          [2]int //[button, floor]
+	DelOrder       [4]int
 	ElevatorStatus elevatorStatus.Elevator
 }
 
 func RecvMsg(conn *net.UDPConn, msgChan chan UpdateMessage) {
-	buffer := make([]byte, 1024) 
-	for{
+	buffer := make([]byte, 1024)
+	for {
 		var msg UpdateMessage
-		msgSize := network.UDPListen(conn,buffer)
+		msgSize := network.UDPListen(conn, buffer)
 		array := buffer[0:msgSize]
 		err := json.Unmarshal(array, &msg)
-		if err == nil{
+		if err == nil {
 			msgChan <- msg
 		}
 	}
-	if (conn != nil){
+	if conn != nil {
 		defer conn.Close()
 	}
 }
 
-func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage, elevChan chan elevatorStatus.Elevator, notAlive chan bool){
-	if (conn != nil){
+func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage, elevObject chan elevatorStatus.Elevator, notAlive chan bool) {
+	if conn != nil {
 		defer conn.Close()
 	}
-	ticker := time.NewTicker(time.Millisecond*500)
+	ticker := time.NewTicker(time.Millisecond * 500)
 	var shouldSend bool = false
-	if network.GetIpAddress() != "::1"{
+	if network.GetIpAddress() != "::1" {
 		for {
-			select{
+			select {
 			case message := <-msgChan:
 				encoded := encodeUDPmsg(message)
 				buffer := []byte(encoded)
 				network.UDPWrite(conn, buffer)
-			case <- notAlive:
+			case <-notAlive:
 				shouldSend = true
 			case <-ticker.C:
-				if shouldSend != true{
-					e := elevatorStatus.MakeCopyOfElevator(elevChan)
+				if shouldSend != true {
+					e := elevatorStatus.MakeCopyOfElevator(elevObject)
 					alive := UpdateMessage{MessageType: IAmAlive, ElevatorStatus: e}
 					encoded := encodeUDPmsg(alive)
 					buffer := []byte(encoded)
@@ -70,9 +70,9 @@ func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage, elevChan chan elevat
 	}
 }
 
-func encodeUDPmsg(message UpdateMessage)[]byte{
-	encoded,err := json.Marshal(message)
-	if err != nil{
+func encodeUDPmsg(message UpdateMessage) []byte {
+	encoded, err := json.Marshal(message)
+	if err != nil {
 		fmt.Println("error in encodeUDPmsg", err)
 	}
 	return encoded

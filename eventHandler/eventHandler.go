@@ -1,91 +1,92 @@
 package eventHandler
-import(
+
+import (
 	"fmt"
 	"time"
 	//"../network"
-	"../messageHandler/message"
 	"../elevatorControl/elevatorStatus"
 	"../elevatorControl/orderHandling"
+	"../messageHandler/message"
 	//"../cost"
 	"../elevatorControl/driver"
 )
 
-func SelectMaster(elevators map[string]*elevatorStatus.Elevator){
+func SelectMaster(elevators map[string]*elevatorStatus.Elevator) {
 	var minimumIP string = "129.241.187.999"
-	for ip,_ := range elevators{
+	for ip, _ := range elevators {
 		fmt.Println("IP: ", ip)
 		if ip < minimumIP {
 			minimumIP = ip
 		}
 	}
-	for _,elev := range elevators{
+	for _, elev := range elevators {
 		elev.Master = minimumIP
-	} 
+	}
 	fmt.Println("New master: ", minimumIP)
 }
 
-func DeleteElevator(elevators map[string]*elevatorStatus.Elevator,IP string, sendChan chan message.UpdateMessage, elevatorTimers map[string]*time.Timer, myIP string, elevChan chan elevatorStatus.Elevator, abortElev chan bool, masterMatrix [driver.NUM_FLOORS][driver.NUM_BUTTONS]int, shouldAbort chan bool){
+func DeleteElevator(elevators map[string]*elevatorStatus.Elevator, IP string, sendChan chan message.UpdateMessage, elevatorTimers map[string]*time.Timer, myIP string, elevObject chan elevatorStatus.Elevator, abortElev chan bool, masterMatrix [driver.NUM_FLOORS][driver.NUM_BUTTONS]int, shouldAbort chan bool) {
 	elev := elevators[IP]
 	fmt.Println("Delete this elevator: ", elev)
 	delete(elevatorTimers, IP)
 	delete(elevators, IP)
 	SelectMaster(elevators)
 	//If the deleted elevator had any external orders they will be reassigned here
-	if IP != myIP{
-		for floor := 0; floor < driver.NUM_FLOORS; floor++{
-			for button := 0; button < driver.NUM_BUTTONS-1; button++{
-				if elev.OrderMatrix[floor][button] == 1{
+	if IP != myIP {
+		for floor := 0; floor < driver.NUM_FLOORS; floor++ {
+			for button := 0; button < driver.NUM_BUTTONS-1; button++ {
+				if elev.OrderMatrix[floor][button] == 1 {
 					var order [2]int
 					order[0] = floor
 					order[1] = button
-					sendChan <-message.UpdateMessage{MessageType: message.PlacedOrder, Order: order, RecieverIP: elevators[myIP].Master}
+					sendChan <- message.UpdateMessage{MessageType: message.PlacedOrder, Order: order, RecieverIP: elevators[myIP].Master}
 				}
 			}
 		}
-	} else{
-		e := <- elevChan
-		for floor := 0; floor < driver.NUM_FLOORS; floor++{
-			for button := 0; button < driver.NUM_BUTTONS-1; button++{
+	} else {
+		e := <-elevObject
+		for floor := 0; floor < driver.NUM_FLOORS; floor++ {
+			for button := 0; button < driver.NUM_BUTTONS-1; button++ {
 				e.OrderMatrix[floor][button] = masterMatrix[floor][button]
 			}
 		}
-		elevChan <-e
+		elevObject <- e
 		abort := <-shouldAbort
-		if abort == true{
+		if abort == true {
 			abortElev <- true
 		}
 	}
 }
 
-func EventHandler(newStateUpdate chan bool, buttonChan chan [2]int, powerChan chan bool, deleteChan chan [4]int, elevChan chan elevatorStatus.Elevator, sendNetwork chan message.UpdateMessage,  notAlive chan bool, shouldAbort chan bool){
-	for{
-		select{
-			case <-newStateUpdate: 
-				elev := elevatorStatus.MakeCopyOfElevator(elevChan)
-				sendNetwork <-message.UpdateMessage{MessageType: message.StateUpdate, ElevatorStatus: elev}
-			case order:= <-buttonChan:
-				elev := elevatorStatus.MakeCopyOfElevator(elevChan)
-				orderHandling.WriteInternalsToFile(elev.OrderMatrix)
-				if order[1] == driver.BUTTON_COMMAND{
-					e := <- elevChan
-					e = orderHandling.AddOrderToQueue(e,order)
-					elevChan <- e
-				} else{
-					sendNetwork <-message.UpdateMessage{MessageType: message.PlacedOrder, RecieverIP: elev.Master, Order: order,
+func EventHandler(newStateUpdate chan bool, buttonPushed chan [2]int, powerOffDetected chan bool, deleteCompletedOrder chan [4]int, elevObject chan elevatorStatus.Elevator, sendNetwork chan message.UpdateMessage, notAlive chan bool, shouldAbort chan bool) {
+	for {
+		select {
+		case <-newStateUpdate:
+			elev := elevatorStatus.MakeCopyOfElevator(elevObject)
+			sendNetwork <- message.UpdateMessage{MessageType: message.StateUpdate, ElevatorStatus: elev}
+		case order := <-buttonPushed:
+			elev := elevatorStatus.MakeCopyOfElevator(elevObject)
+			orderHandling.WriteInternalsToFile(elev.OrderMatrix)
+			if order[1] == driver.BUTTON_COMMAND {
+				e := <-elevObject
+				e = orderHandling.AddOrderToQueue(e, order)
+				elevObject <- e
+			} else {
+				sendNetwork <- message.UpdateMessage{MessageType: message.PlacedOrder, RecieverIP: elev.Master, Order: order,
 					ElevatorStatus: elev}
-				}
-			case <-powerChan:
-				notAlive <- true
-				shouldAbort <- true
-			case completedOrder := <-deleteChan:
-				elev := elevatorStatus.MakeCopyOfElevator(elevChan)
-				orderHandling.WriteInternalsToFile(elev.OrderMatrix)
-				sendNetwork <-message.UpdateMessage{MessageType: message.CompletedOrder, DelOrder: completedOrder, ElevatorStatus: elev}
+			}
+		case <-powerOffDetected:
+			notAlive <- true
+			shouldAbort <- true
+		case completedOrder := <-deleteCompletedOrder:
+			elev := elevatorStatus.MakeCopyOfElevator(elevObject)
+			orderHandling.WriteInternalsToFile(elev.OrderMatrix)
+			sendNetwork <- message.UpdateMessage{MessageType: message.CompletedOrder, DelOrder: completedOrder, ElevatorStatus: elev}
 		}
 	}
 }
 
-// func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.UpdateMessage, newOrderToFSM chan elevatorStatus.Elevator, elevChan chan elevatorStatus.Elevator, abortElev chan bool, abortChan chan bool){ // +order message.UpdateMessage
+// func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.UpdateMessage, newOrderToFSM chan elevatorStatus.Elevator, elevObject chan elevatorStatus.Elevator, abortElev chan bool, abortChan chan bool){ // +order message.UpdateMessage
 // 	var msg message.UpdateMessage
 // 	myIP := network.GetIpAddress()
 // 	var MasterMatrix [driver.NUM_FLOORS][driver.NUM_BUTTONS]int
@@ -102,7 +103,7 @@ func EventHandler(newStateUpdate chan bool, buttonChan chan [2]int, powerChan ch
 // 					shouldAppend = false
 // 					elevatorTimers[ip].Reset(time.Second*2)
 // 				}
-// 			}	
+// 			}
 // 			if shouldAppend == true{
 // 				elevators[msg.ElevatorStatus.IP] = new(elevatorStatus.Elevator)
 // 				elevators[msg.ElevatorStatus.IP].Dir = msg.ElevatorStatus.Dir
@@ -110,16 +111,16 @@ func EventHandler(newStateUpdate chan bool, buttonChan chan [2]int, powerChan ch
 // 				elevators[msg.ElevatorStatus.IP].PreviousFloor = msg.ElevatorStatus.PreviousFloor
 // 				elevators[msg.ElevatorStatus.IP].State = msg.ElevatorStatus.State
 // 				elevators[msg.ElevatorStatus.IP].IP = msg.ElevatorStatus.IP
-			
+
 // 				ip := msg.ElevatorStatus.IP
-// 				elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() { deleteElevator(elevators, ip, sendChan, elevatorTimers, myIP, elevChan, abortElev, MasterMatrix, abortChan)})
+// 				elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() { deleteElevator(elevators, ip, sendChan, elevatorTimers, myIP, elevObject, abortElev, MasterMatrix, abortChan)})
 // 				selectMaster(elevators)
-// 			}			
+// 			}
 // 		case message.PlacedOrder:
 // 			floor := msg.Order[0]
 // 			button := msg.Order[1]
 // 			if MasterMatrix[floor][button] == 0{
-// 				if elevators[myIP].Master == network.GetIpAddress(){ 
+// 				if elevators[myIP].Master == network.GetIpAddress(){
 // 					if button < 2{
 // 						MasterMatrix[floor][button] = 1
 // 						AssignedElev := cost.AssignOrdersToElevator(msg, elevators)
@@ -128,7 +129,7 @@ func EventHandler(newStateUpdate chan bool, buttonChan chan [2]int, powerChan ch
 // 						sendChan <-message.UpdateMessage{MessageType: message.AssignedOrder, RecieverIP: msg.ElevatorStatus.IP, Order: msg.Order}
 // 					}
 // 				}
-// 			}	
+// 			}
 // 		case message.AssignedOrder:
 // 			button := msg.Order[1]
 // 			if button < 2{
@@ -141,7 +142,7 @@ func EventHandler(newStateUpdate chan bool, buttonChan chan [2]int, powerChan ch
 // 		case message.CompletedOrder:
 // 			completed := msg.DelOrder
 // 			floor := msg.DelOrder[3]
-// 			var noOrder [2]int 
+// 			var noOrder [2]int
 // 			noOrder[0] = 0
 // 			noOrder[1] = 1
 // 			for button := 0; button < driver.NUM_BUTTONS; button++{
