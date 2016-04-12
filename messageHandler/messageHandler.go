@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.UpdateMessage, newOrderToFSM chan elevatorStatus.Elevator, elevObject chan elevatorStatus.Elevator, abortElev chan bool, shouldAbort chan bool) {
+func MessageHandler(recvChan chan message.UpdateMessage, sendNetwork chan message.UpdateMessage, newOrderToFSM chan elevatorStatus.Elevator, elevObject chan elevatorStatus.Elevator, abortElev chan bool, shouldAbort chan bool) {
 	var msg message.UpdateMessage
 	myIP := network.GetIpAddress()
 	var masterMatrix [driver.NUM_FLOORS][driver.NUM_BUTTONS]int
@@ -40,7 +40,7 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 
 				ip := msg.ElevatorStatus.IP
 				elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() {
-					eventHandler.DeleteElevator(elevators, ip, sendChan, elevatorTimers, myIP, elevObject, abortElev, masterMatrix, shouldAbort)
+					eventHandler.DeleteElevator(elevators, ip, sendNetwork, elevatorTimers, myIP, elevObject, abortElev, masterMatrix, shouldAbort)
 				})
 				eventHandler.SelectMaster(elevators)
 			}
@@ -52,16 +52,16 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 					if button < 2 {
 						masterMatrix[floor][button] = 1
 						assignedElev := cost.AssignOrders(msg, elevators)
-						sendChan <- message.UpdateMessage{MessageType: message.AssignedOrder, Order: msg.Order, RecieverIP: assignedElev}
+						sendNetwork <- message.UpdateMessage{MessageType: message.AssignedOrder, Order: msg.Order, RecieverIP: assignedElev}
 					} else if button == driver.BUTTON_COMMAND {
-						sendChan <- message.UpdateMessage{MessageType: message.AssignedOrder, RecieverIP: msg.ElevatorStatus.IP, Order: msg.Order}
+						sendNetwork <- message.UpdateMessage{MessageType: message.AssignedOrder, RecieverIP: msg.ElevatorStatus.IP, Order: msg.Order}
 					}
 				}
 			}
 		case message.AssignedOrder:
 			button := msg.Order[1]
 			if button < 2 {
-				sendChan <- message.UpdateMessage{MessageType: message.LightUpdate, Order: msg.Order}
+				sendNetwork <- message.UpdateMessage{MessageType: message.LightUpdate, Order: msg.Order}
 			}
 			if msg.RecieverIP == network.GetIpAddress() {
 				*elevators[msg.RecieverIP] = orderHandling.AddOrderToQueue(*elevators[msg.RecieverIP], msg.Order)
@@ -77,9 +77,9 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendChan chan message.U
 				if completedOrder[button] == 1 {
 					masterMatrix[floor][button] = 0
 					if button < 2 {
-						sendChan <- message.UpdateMessage{MessageType: message.LightUpdate, DelOrder: completedOrder, Order: noOrder}
+						sendNetwork <- message.UpdateMessage{MessageType: message.LightUpdate, DelOrder: completedOrder, Order: noOrder}
 					} else {
-						sendChan <- message.UpdateMessage{MessageType: message.LightUpdate, RecieverIP: msg.ElevatorStatus.IP, DelOrder: completedOrder, Order: noOrder}
+						sendNetwork <- message.UpdateMessage{MessageType: message.LightUpdate, RecieverIP: msg.ElevatorStatus.IP, DelOrder: completedOrder, Order: noOrder}
 					}
 				}
 			}
