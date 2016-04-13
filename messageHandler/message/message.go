@@ -20,7 +20,7 @@ const (
 
 type UpdateMessage struct {
 	MessageType    int
-	RecieverIP     string
+	ReceiverIP     string
 	Order          [2]int //[button, floor]
 	DelOrder       [4]int
 	ElevatorStatus elevatorStatus.Elevator
