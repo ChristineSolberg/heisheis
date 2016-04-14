@@ -46,7 +46,7 @@ func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage, elevObject chan elev
 	if conn != nil {
 		defer conn.Close()
 	}
-	ticker := time.NewTicker(time.Millisecond * 500)
+	ticker := time.NewTicker(time.Millisecond * 200)
 	var shouldSend bool = false
 	if network.GetIpAddress() != "::1" {
 		for {
@@ -58,6 +58,7 @@ func SendMsg(conn *net.UDPConn, msgChan chan UpdateMessage, elevObject chan elev
 			case <-notAlive:
 				shouldSend = true
 			case <-ticker.C:
+				//Sending I'm alive message
 				if shouldSend != true {
 					e := elevatorStatus.MakeCopyOfElevator(elevObject)
 					alive := UpdateMessage{MessageType: IAmAlive, ElevatorStatus: e}

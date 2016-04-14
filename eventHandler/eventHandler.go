@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 	//"../network"
+	"../cost"
+	"../elevatorControl/driver"
 	"../elevatorControl/elevatorStatus"
 	"../elevatorControl/orderHandling"
 	"../messageHandler/message"
-	"../cost"
-	"../elevatorControl/driver"
 )
 
 func SelectMaster(elevators map[string]*elevatorStatus.Elevator) {
@@ -43,6 +43,7 @@ func DeleteElevator(elevators map[string]*elevatorStatus.Elevator, IP string, se
 				}
 			}
 		}
+		//If network connection is lost, add all existing orders in the system to the local queue (all lighting buttons)
 	} else {
 		e := <-elevObject
 		for floor := 0; floor < driver.NUM_FLOORS; floor++ {
@@ -58,7 +59,7 @@ func DeleteElevator(elevators map[string]*elevatorStatus.Elevator, IP string, se
 	}
 }
 
-func EventHandler(newStateUpdate chan bool, buttonPushed chan [2]int, powerOffDetected chan bool, deleteCompletedOrder chan [4]int, elevObject chan elevatorStatus.Elevator, placedOrder chan message.UpdateMessage, 
+func EventHandler(newStateUpdate chan bool, buttonPushed chan [2]int, powerOffDetected chan bool, deleteCompletedOrder chan [4]int, elevObject chan elevatorStatus.Elevator, placedOrder chan message.UpdateMessage,
 	elevatorMap chan map[string]*elevatorStatus.Elevator, setExternalLightsOn chan [2]int, setExternalLightsOff chan [4]int, sendNetwork chan message.UpdateMessage, notAlive chan bool, shouldAbort chan bool) {
 	for {
 		select {
@@ -66,34 +67,31 @@ func EventHandler(newStateUpdate chan bool, buttonPushed chan [2]int, powerOffDe
 			elev := elevatorStatus.MakeCopyOfElevator(elevObject)
 			sendNetwork <- message.UpdateMessage{MessageType: message.StateUpdate, ElevatorStatus: elev}
 		case button := <-buttonPushed:
-			elev := elevatorStatus.MakeCopyOfElevator(elevObject)
-			orderHandling.WriteInternalsToFile(elev.OrderMatrix)
+			e := <-elevObject
 			if button[1] == driver.BUTTON_COMMAND {
-				e := <-elevObject
 				e = orderHandling.AddOrderToQueue(e, button)
-				fmt.Println("OrderMatrix etter AddOrderToQueue: ", e.OrderMatrix)
-				elevObject <- e
+				orderHandling.WriteInternalsToFile(e.OrderMatrix)
 			} else {
-				sendNetwork <- message.UpdateMessage{MessageType: message.PlacedOrder, ReceiverIP: elev.Master, Order: button,
-					ElevatorStatus: elev}
+				sendNetwork <- message.UpdateMessage{MessageType: message.PlacedOrder, ReceiverIP: e.Master, Order: button,
+					ElevatorStatus: e}
 			}
+			elevObject <- e
 		case orderMsg := <-placedOrder:
-			elevators := <- elevatorMap
-			//floor := orderMsg.Order[0]
+			elevators := <-elevatorMap
 			button := orderMsg.Order[1]
 			if button < 2 {
 				assignedElev := cost.AssignOrders(orderMsg, elevators)
 				sendNetwork <- message.UpdateMessage{MessageType: message.AssignedOrder, Order: orderMsg.Order, ReceiverIP: assignedElev}
 			} else if button == driver.BUTTON_COMMAND {
 				sendNetwork <- message.UpdateMessage{MessageType: message.AssignedOrder, ReceiverIP: orderMsg.ElevatorStatus.IP, Order: orderMsg.Order}
-			}	
-		case lightsOn := <- setExternalLightsOn:
+			}
+		case lightsOn := <-setExternalLightsOn:
 			sendNetwork <- message.UpdateMessage{MessageType: message.LightUpdate, Order: lightsOn}
-		case lightsOff := <- setExternalLightsOff:
+		case lightsOff := <-setExternalLightsOff:
 			var noOrder [2]int
 			noOrder[0] = 0
 			noOrder[1] = 1
-			sendNetwork <- message.UpdateMessage{MessageType: message.LightUpdate, DelOrder: lightsOff, Order: noOrder} 
+			sendNetwork <- message.UpdateMessage{MessageType: message.LightUpdate, DelOrder: lightsOff, Order: noOrder}
 		case completedOrder := <-deleteCompletedOrder:
 			elev := elevatorStatus.MakeCopyOfElevator(elevObject)
 			orderHandling.WriteInternalsToFile(elev.OrderMatrix)

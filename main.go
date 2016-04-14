@@ -31,7 +31,7 @@ func main() {
 	newOrderToFSM := make(chan elevatorStatus.Elevator, 100)
 	newStateUpdate := make(chan bool, 100)
 	buttonPushed := make(chan [2]int, 100)
-	placedOrder := make(chan message.UpdateMessage,100)
+	placedOrder := make(chan message.UpdateMessage, 100)
 	setExternalLightsOn := make(chan [2]int, 50)
 	setExternalLightsOff := make(chan [4]int, 50)
 	deleteCompletedOrder := make(chan [4]int, 30)

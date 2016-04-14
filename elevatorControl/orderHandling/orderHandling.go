@@ -17,6 +17,7 @@ func AddOrderToQueue(e elevatorStatus.Elevator, order [2]int) elevatorStatus.Ele
 }
 
 func ReadButtons(buttonPushed chan [2]int, elevObject chan elevatorStatus.Elevator) {
+	//In addition to reading all the buttons, this function will set internal lights.
 	var order [2]int
 	var prevOrder [2]int
 	prevOrder[0] = -1

@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func MessageHandler(recvChan chan message.UpdateMessage, sendNetwork chan message.UpdateMessage, newOrderToFSM chan elevatorStatus.Elevator, elevObject chan elevatorStatus.Elevator, 
+func MessageHandler(recvChan chan message.UpdateMessage, sendNetwork chan message.UpdateMessage, newOrderToFSM chan elevatorStatus.Elevator, elevObject chan elevatorStatus.Elevator,
 	placedOrder chan message.UpdateMessage, elevatorMap chan map[string]*elevatorStatus.Elevator, setExternalLightsOn chan [2]int, setExternalLightsOff chan [4]int, abortElev chan bool, shouldAbort chan bool) {
 	var msg message.UpdateMessage
 	myIP := network.GetIpAddress()
@@ -33,12 +33,7 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendNetwork chan messag
 			}
 			if shouldAddToMap == true {
 				elevators[msg.ElevatorStatus.IP] = new(elevatorStatus.Elevator)
-				elevators[msg.ElevatorStatus.IP].Direction = msg.ElevatorStatus.Direction
-				elevators[msg.ElevatorStatus.IP].CurrentFloor = msg.ElevatorStatus.CurrentFloor
-				elevators[msg.ElevatorStatus.IP].PreviousFloor = msg.ElevatorStatus.PreviousFloor
-				elevators[msg.ElevatorStatus.IP].State = msg.ElevatorStatus.State
-				elevators[msg.ElevatorStatus.IP].IP = msg.ElevatorStatus.IP
-				//updateElevator(elevators, msg.ElevatorStatus.IP ,msg)
+				updateElevator(elevators, msg.ElevatorStatus.IP, msg)
 				ip := msg.ElevatorStatus.IP
 				elevatorTimers[msg.ElevatorStatus.IP] = time.AfterFunc(time.Second*2, func() {
 					eventHandler.DeleteElevator(elevators, ip, sendNetwork, elevatorTimers, myIP, elevObject, abortElev, masterMatrix, shouldAbort)
@@ -46,7 +41,7 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendNetwork chan messag
 				eventHandler.SelectMaster(elevators)
 			}
 		case message.PlacedOrder:
-			if elevators[myIP].Master == network.GetIpAddress(){
+			if elevators[myIP].Master == network.GetIpAddress() {
 				floor := msg.Order[0]
 				button := msg.Order[1]
 				if masterMatrix[floor][button] == 0 {
@@ -56,7 +51,7 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendNetwork chan messag
 				}
 				placedOrder <- msg
 				elevatorMap <- elevators
-			}			
+			}
 		case message.AssignedOrder:
 			button := msg.Order[1]
 			if button < 2 {
@@ -80,7 +75,7 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendNetwork chan messag
 				fmt.Println("Elevators in map in StateUpdate: ", elev)
 			}
 			if elevators[msg.ElevatorStatus.IP] != nil {
-				updateElevator(elevators, msg.ElevatorStatus.IP ,msg)
+				updateElevator(elevators, msg.ElevatorStatus.IP, msg)
 			}
 		case message.LightUpdate:
 			completedOrder := msg.DelOrder
@@ -99,12 +94,11 @@ func MessageHandler(recvChan chan message.UpdateMessage, sendNetwork chan messag
 	}
 }
 
-func updateElevator(elevators map[string]*elevatorStatus.Elevator, IP string, msg message.UpdateMessage){
+func updateElevator(elevators map[string]*elevatorStatus.Elevator, IP string, msg message.UpdateMessage) {
 	elevators[IP].Direction = msg.ElevatorStatus.Direction
 	elevators[IP].CurrentFloor = msg.ElevatorStatus.CurrentFloor
 	elevators[IP].PreviousFloor = msg.ElevatorStatus.PreviousFloor
 	elevators[IP].State = msg.ElevatorStatus.State
 	elevators[IP].IP = msg.ElevatorStatus.IP
 	elevators[IP].OrderMatrix = msg.ElevatorStatus.OrderMatrix
-	fmt.Println("OrderMatrix i updateElevator: ", elevators[IP].OrderMatrix)
 }

@@ -11,11 +11,11 @@ import (
 
 func RunFSM(newOrderToFSM chan elevatorStatus.Elevator, newStateUpdate chan bool, deleteCompletedOrder chan [4]int, elevObject chan elevatorStatus.Elevator, powerOffDetected chan bool, abortElev chan bool) {
 	doorTimer := time.NewTimer(time.Nanosecond)
-	DoorTimeout := doorTimer.C
-	powerTimer := time.NewTimer(time.Nanosecond)
-	PowerTimeout := powerTimer.C
+	doorTimeout := doorTimer.C
+	powerTimer := time.NewTimer(time.Minute)
+	powerTimeout := powerTimer.C
 	eventChan := make(chan elevatorStatus.Event, 100)
-	go getNextEvent(elevObject, eventChan, powerOffDetected, PowerTimeout, DoorTimeout)
+	go getNextEvent(elevObject, eventChan, powerOffDetected, powerTimeout, doorTimeout)
 	var turnOffPower bool
 	for {
 		select {
@@ -94,14 +94,14 @@ func updateFSM_IDLE(event elevatorStatus.Event, elevObject chan elevatorStatus.E
 	elevObject <- e
 }
 
-func updateFSM_GO_UP(event elevatorStatus.Event, elevObject chan elevatorStatus.Elevator, deleteCompletedOrder chan [4]int, powerOffDetected chan bool, powerTimer *time.Timer, DoorTimeout *time.Timer) {
+func updateFSM_GO_UP(event elevatorStatus.Event, elevObject chan elevatorStatus.Elevator, deleteCompletedOrder chan [4]int, powerOffDetected chan bool, powerTimer *time.Timer, doorTimeout *time.Timer) {
 	e := <-elevObject
 	switch event {
 	case elevatorStatus.FLOOR_REACHED:
 		if orderHandling.ShouldStop(e) == true {
 			driver.Set_motor_speed(driver.MDIR_STOP)
 			driver.Set_door_open_lamp(1)
-			DoorTimeout.Reset(time.Second * 3)
+			doorTimeout.Reset(time.Second * 3)
 			powerTimer.Stop()
 			orderHandling.DeleteCompletedOrders(&e, deleteCompletedOrder)
 			e.PreviousFloor = driver.Get_floor_sensor_signal()
@@ -123,7 +123,7 @@ func updateFSM_GO_UP(event elevatorStatus.Event, elevObject chan elevatorStatus.
 	elevObject <- e
 }
 
-func updateFSM_GO_DOWN(event elevatorStatus.Event, elevObject chan elevatorStatus.Elevator, deleteCompletedOrder chan [4]int, powerOffDetected chan bool, powerTimer *time.Timer, DoorTimeout *time.Timer) {
+func updateFSM_GO_DOWN(event elevatorStatus.Event, elevObject chan elevatorStatus.Elevator, deleteCompletedOrder chan [4]int, powerOffDetected chan bool, powerTimer *time.Timer, doorTimeout *time.Timer) {
 	e := <-elevObject
 	switch event {
 	case elevatorStatus.FLOOR_REACHED:
@@ -131,7 +131,7 @@ func updateFSM_GO_DOWN(event elevatorStatus.Event, elevObject chan elevatorStatu
 			driver.Set_motor_speed(driver.MDIR_STOP)
 			driver.Set_door_open_lamp(1)
 			e.State = elevatorStatus.DOOR_OPEN
-			DoorTimeout.Reset(time.Second * 3)
+			doorTimeout.Reset(time.Second * 3)
 			powerTimer.Stop()
 			orderHandling.DeleteCompletedOrders(&e, deleteCompletedOrder)
 			e.PreviousFloor = driver.Get_floor_sensor_signal()
@@ -151,7 +151,7 @@ func updateFSM_GO_DOWN(event elevatorStatus.Event, elevObject chan elevatorStatu
 	elevObject <- e
 }
 
-func updateFSM_DOOR_OPEN(event elevatorStatus.Event, elevObject chan elevatorStatus.Elevator, deleteCompletedOrder chan [4]int, DoorTimeout *time.Timer) {
+func updateFSM_DOOR_OPEN(event elevatorStatus.Event, elevObject chan elevatorStatus.Elevator, deleteCompletedOrder chan [4]int, doorTimeout *time.Timer) {
 	e := <-elevObject
 	switch event {
 	case elevatorStatus.TIMER_OUT:
@@ -159,7 +159,7 @@ func updateFSM_DOOR_OPEN(event elevatorStatus.Event, elevObject chan elevatorSta
 		e.State = elevatorStatus.IDLE
 		break
 	case elevatorStatus.NEW_ORDER_AT_CURRENT:
-		DoorTimeout.Reset(time.Second * 3)
+		doorTimeout.Reset(time.Second * 3)
 		driver.Set_door_open_lamp(1)
 		e.State = elevatorStatus.DOOR_OPEN
 		orderHandling.DeleteCompletedOrders(&e, deleteCompletedOrder)
@@ -173,7 +173,7 @@ func updateFSM_DOOR_OPEN(event elevatorStatus.Event, elevObject chan elevatorSta
 	elevObject <- e
 }
 
-func getNextEvent(elevObject chan elevatorStatus.Elevator, eventChan chan elevatorStatus.Event, powerOffDetected chan bool, PowerTimeout <-chan time.Time, DoorTimeout <-chan time.Time) {
+func getNextEvent(elevObject chan elevatorStatus.Elevator, eventChan chan elevatorStatus.Event, powerOffDetected chan bool, powerTimeout <-chan time.Time, doorTimeout <-chan time.Time) {
 	var nextEvent elevatorStatus.Event
 	var prevEvent elevatorStatus.Event
 	for {
@@ -181,14 +181,14 @@ func getNextEvent(elevObject chan elevatorStatus.Elevator, eventChan chan elevat
 		go changeElev(e, elevObject)
 		currentFloor := driver.Get_floor_sensor_signal()
 		select {
-		case <-DoorTimeout:
+		case <-doorTimeout:
 			nextEvent = elevatorStatus.TIMER_OUT
 			if prevEvent != nextEvent {
 				fmt.Println("Event: ", nextEvent)
 				eventChan <- nextEvent
 				prevEvent = nextEvent
 			}
-		case <-PowerTimeout:
+		case <-powerTimeout:
 			nextEvent = elevatorStatus.POWER_OFF
 			eventChan <- nextEvent
 		default:
@@ -251,21 +251,13 @@ func StartUp(elevObject chan elevatorStatus.Elevator) {
 			break
 		}
 	}
-	for driver.Get_floor_sensor_signal() == -1 {
-		driver.Set_motor_speed(driver.MDIR_DOWN)
-	}
+	driver.Startup_floor()
+	driver.Init_button_lamps()
+
 	for driver.Get_floor_sensor_signal() != -1 {
 		driver.Set_floor_indicator(driver.Get_floor_sensor_signal())
 		driver.Set_motor_speed(driver.MDIR_STOP)
 		break
-	}
-	for floor := 0; floor < driver.NUM_FLOORS; floor++ {
-		for button := 0; button < driver.NUM_BUTTONS; button++ {
-			if (floor == 0 && button == 1) || (floor == 3 && button == 0) {
-			} else {
-				driver.Set_button_lamp(button, floor, 0)
-			}
-		}
 	}
 	e.Direction = driver.MDIR_STOP
 	e.CurrentFloor = driver.Get_floor_sensor_signal()
