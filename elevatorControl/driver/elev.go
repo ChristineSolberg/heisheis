@@ -120,6 +120,14 @@ func Set_door_open_lamp(value int) {
 	}
 }
 
+func Set_stop_lamp(value int) {
+	if value == 1 {
+		IO_set_bit(LIGHT_STOP)
+	} else {
+		IO_clear_bit(LIGHT_STOP)
+	}
+}
+
 func Get_button_signal(button int, floor int) int {
 	if floor < 0 || floor > NUM_FLOORS || button < 0 || button > NUM_BUTTONS {
 		fmt.Println("Error: Get_button_signal")
